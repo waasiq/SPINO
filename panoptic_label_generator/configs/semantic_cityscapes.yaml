@@ -4,7 +4,7 @@ seed_everything: 0
 trainer:
   max_epochs: 50
   accelerator: gpu
-  strategy: ddp_find_unused_parameters_false
+  strategy: auto #ddp_find_unused_parameters_false
   sync_batchnorm: True
   logger: False
   callbacks:
@@ -19,7 +19,7 @@ model:
   num_classes: ${data.init_args.num_classes}
   train_output_size: ${data_params.image_size_input}
   upsample_factor: 14.0
-  head: "mlp"
+  head: "knn"
   ignore_index: 255
   top_k_percent_pixels: 0.2
   test_output_size: ${data_params.image_size_original}
