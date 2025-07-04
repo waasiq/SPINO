@@ -25,13 +25,14 @@ model:
   test_output_size: ${data_params.image_size_original}
   test_multi_scales: [1, 2, 3]
   test_plot: False
+  use_checkpoint: true
 
 data:
   class_path: datasets.cityscapes.CityscapesDataModule
   init_args:
     cfg_dataset:
       name: "cityscapes"
-      path: "" # SET THE PATH TO THE CITYSCAPES DATASET
+      path: "/work/dlclarge2/biswass-spino/cityscapes" # SET THE PATH TO THE CITYSCAPES DATASET
       feed_img_size: ${data_params.image_size_original}
       offsets: [0]
       remove_classes: []

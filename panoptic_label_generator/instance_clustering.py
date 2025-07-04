@@ -312,7 +312,7 @@ class InstanceClusterCLI(LightningCLI):
 
     def add_arguments_to_parser(self, parser):
         # Dataset
-        parser.add_argument('--data_params', type=Dict)
+        parser.add_argument('--data_params', type=Dict[str, Any])
 
 
 if __name__ == '__main__':
