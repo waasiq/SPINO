@@ -1,0 +1,48 @@
+/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torchvision/io/image.py:11: UserWarning: Failed to load image Python extension: libtorch_cuda_cu.so: cannot open shared object file: No such file or directory
+  warn(f"Failed to load image Python extension: {e}")
+[rank: 0] Seed set to 0
+xFormers not available
+xFormers not available
+/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/lightning_fabric/plugins/environments/slurm.py:204: The `srun` command is available on your system but is not used. HINT: If your intention is to run Lightning on SLURM, prepend your python command with `srun` like so: srun python panoptic_label_generator/boundary_fine_tuning.py fit ...
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+HPU available: False, using: 0 HPUs
+Initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/1
+----------------------------------------------------------------------------------------------------
+distributed_backend=nccl
+All distributed processes registered. Starting with 1 processes
+----------------------------------------------------------------------------------------------------
+
+Collect Cityscapes frames [train]:   0%|          | 0/2975 [00:00<?, ?it/s]Collect Cityscapes frames [train]:   8%|▊         | 243/2975 [00:00<00:01, 2429.06it/s]Collect Cityscapes frames [train]:  17%|█▋        | 497/2975 [00:00<00:00, 2490.80it/s]Collect Cityscapes frames [train]:  25%|██▌       | 748/2975 [00:00<00:00, 2499.27it/s]Collect Cityscapes frames [train]:  34%|███▎      | 1000/2975 [00:00<00:00, 2506.83it/s]Collect Cityscapes frames [train]:  42%|████▏     | 1251/2975 [00:00<00:00, 2472.40it/s]Collect Cityscapes frames [train]:  51%|█████     | 1505/2975 [00:00<00:00, 2494.98it/s]Collect Cityscapes frames [train]:  59%|█████▉    | 1755/2975 [00:00<00:00, 2494.26it/s]Collect Cityscapes frames [train]:  67%|██████▋   | 2005/2975 [00:00<00:00, 2475.95it/s]Collect Cityscapes frames [train]:  76%|███████▌  | 2254/2975 [00:00<00:00, 2477.17it/s]Collect Cityscapes frames [train]:  84%|████████▍ | 2509/2975 [00:01<00:00, 2498.67it/s]Collect Cityscapes frames [train]:  93%|█████████▎| 2764/2975 [00:01<00:00, 2511.34it/s]Collect Cityscapes frames [train]: 100%|██████████| 2975/2975 [00:01<00:00, 2498.10it/s]
+/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/callbacks/model_checkpoint.py:654: Checkpoint directory /work/dlclarge2/masoodw-spino100/SPINO/checkpoints exists and is not empty.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "panoptic_label_generator/boundary_fine_tuning.py", line 413, in <module>
+[rank0]:     cli = BoundaryFineTunerCLI()
+[rank0]:   File "panoptic_label_generator/boundary_fine_tuning.py", line 400, in __init__
+[rank0]:     super().__init__(
+[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/cli.py", line 394, in __init__
+[rank0]:     self._run_subcommand(self.subcommand)
+[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/cli.py", line 701, in _run_subcommand
+[rank0]:     fn(**fn_kwargs)
+[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 538, in fit
+[rank0]:     call._call_and_handle_interrupt(
+[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/trainer/call.py", line 46, in _call_and_handle_interrupt
+[rank0]:     return trainer.strategy.launcher.launch(trainer_fn, *args, trainer=trainer, **kwargs)
+[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/strategies/launchers/subprocess_script.py", line 105, in launch
+[rank0]:     return function(*args, **kwargs)
+[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 574, in _fit_impl
+[rank0]:     self._run(model, ckpt_path=ckpt_path)
+[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 957, in _run
+[rank0]:     self.strategy.setup(self)
+[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/strategies/ddp.py", line 171, in setup
+[rank0]:     self.configure_ddp()
+[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/strategies/ddp.py", line 283, in configure_ddp
+[rank0]:     self.model = self._setup_model(self.model)
+[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/strategies/ddp.py", line 195, in _setup_model
+[rank0]:     return DistributedDataParallel(module=model, device_ids=device_ids, **self._ddp_kwargs)
+[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torch/nn/parallel/distributed.py", line 705, in __init__
+[rank0]:     self._log_and_throw(
+[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torch/nn/parallel/distributed.py", line 1127, in _log_and_throw
+[rank0]:     raise err_type(err_msg)
+[rank0]: RuntimeError: DistributedDataParallel is not needed when a module doesn't have any parameter that requires a gradient.
