@@ -52,6 +52,18 @@ class SemanticFineTuner(FineTuner):
         Whether to plot the predictions during testing.
     test_save_dir : str
         Directory to save the predictions during testing.
+    use_vit_adapter : bool
+        Whether to use a ViTAdapter for the DINOv2 model. If True,
+        `dinov2_vit_model` should be one of ['vits14', 'vitb14', 'vitl14', 'vitg14'].
+    vit_adapter_kwargs : Dict[str, Any]
+        Additional keyword arguments for the ViTAdapter. If `use_vit_adapter` is True, this
+        should contain the `interaction_indexes` key with a list of lists of interaction indexes
+        for the ViTAdapter. If not provided, default interaction indexes will be used based on
+        the DINOv2 model architecture:
+        - 'vits14': [[0, 2], [3, 5], [6, 8], [9, 11]]
+        - 'vitb14': [[0, 2], [3, 5], [6, 8], [9, 11]]
+        - 'vitl14': [[0, 2], [3, 5], [6, 8], [9, 11]]
+        - 'vitg14': [[0, 2], [3, 5], [6, 8], [9, 11]]
     """
 
     def __init__(self, dinov2_vit_model: str, num_classes: int, train_output_size: Tuple[int, int],
@@ -65,7 +77,8 @@ class SemanticFineTuner(FineTuner):
                  vit_adapter_kwargs: Optional[Dict[str, Any]] = None
                 ):
         super().__init__(dinov2_vit_model=dinov2_vit_model, blocks=blocks,
-                         upsample_factor=upsample_factor)
+                         upsample_factor=upsample_factor, use_vit_adapter=use_vit_adapter,
+                         vit_adapter_kwargs=vit_adapter_kwargs)
         self.num_classes = num_classes
         self.train_output_size = train_output_size
         self.ignore_index = ignore_index

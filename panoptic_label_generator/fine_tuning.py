@@ -34,35 +34,74 @@ class FineTuner(pl.LightningModule):
               f"vit_adapter_kwargs: {self.vit_adapter_kwargs}")
 
         if self.use_vit_adapter:
+            # Map DINOv2 model names to ViT configurations
+            dinov2_configs = {
+                'vits14': {
+                    'vit_arch_name': 'vit_small',
+                    'vit_kwargs': {
+                        'patch_size': 14,
+                        'embed_dim': 384,
+                        'depth': 12,
+                        'num_heads': 6,
+                        'mlp_ratio': 4,
+                        'qkv_bias': True,
+                        'img_size': 518,
+                    }
+                },
+                'vitb14': {
+                    'vit_arch_name': 'vit_base',
+                    'vit_kwargs': {
+                        'patch_size': 14,
+                        'embed_dim': 768,
+                        'depth': 12,
+                        'num_heads': 12,
+                        'mlp_ratio': 4,
+                        'qkv_bias': True,
+                        'img_size': 518,
+                    }
+                },
+                'vitl14': {
+                    'vit_arch_name': 'vit_large',
+                    'vit_kwargs': {
+                        'patch_size': 14,
+                        'embed_dim': 1024,
+                        'depth': 24,
+                        'num_heads': 16,
+                        'mlp_ratio': 4,
+                        'qkv_bias': True,
+                        'img_size': 518,
+                    }
+                },
+                'vitg14': {
+                    'vit_arch_name': 'vit_giant2',
+                    'vit_kwargs': {
+                        'patch_size': 14,
+                        'embed_dim': 1536,
+                        'depth': 40,
+                        'num_heads': 24,
+                        'mlp_ratio': 4,
+                        'qkv_bias': True,
+                        'img_size': 518,
+                        'ffn_layer': 'swiglufused',
+                    }
+                }
+            }
+            
+            # Get configuration for the specified model
+            if self.dinov2_vit_model not in dinov2_configs:
+                raise ValueError(f'Unknown DINOv2 model: {self.dinov2_vit_model}')
+            
+            model_config = dinov2_configs[self.dinov2_vit_model]
+            
             # Set up default ViT adapter configuration
             default_adapter_kwargs = {
                 'pretrain_size': 518,
                 'init_values': 1.0,
-                'block_chunks': 0,  # Default to no block chunks
                 'interaction_indexes': [[0, 2], [3, 5], [6, 8], [9, 11]],  # Default interaction indexes
-                'vit_arch_name': 'vit_base',
-                'vit_kwargs': {
-                    'patch_size': 14,  # Default DINOv2 patch size
-                    'embed_dim': 768,  # Default for base model
-                },
                 'vit_pretrained': True,
+                **model_config  # Use the model-specific configuration
             }
-            
-            # Map DINOv2 model names to architecture names and update embed_dim
-            model_mapping = {
-                'vits14': {'vit_arch_name': 'vit_small', 'embed_dim': 384, 'depth': 12, 'num_heads': 6},
-                'vitb14': {'vit_arch_name': 'vit_base', 'embed_dim': 768, 'depth': 12, 'num_heads': 12},
-                'vitl14': {'vit_arch_name': 'vit_large', 'embed_dim': 1024, 'depth': 24, 'num_heads': 16},
-                'vitg14': {'vit_arch_name': 'vit_giant', 'embed_dim': 1536, 'depth': 40, 'num_heads': 24},
-            }
-            
-            if self.dinov2_vit_model in model_mapping:
-                model_config = model_mapping[self.dinov2_vit_model]
-                default_adapter_kwargs['vit_arch_name'] = model_config['vit_arch_name']
-                default_adapter_kwargs['vit_kwargs']['embed_dim'] = model_config['embed_dim']
-                default_adapter_kwargs['vit_kwargs']['depth'] = model_config['depth']
-                default_adapter_kwargs['vit_kwargs']['num_heads'] = model_config['num_heads']
-            
+
             # Update with user-provided kwargs
             default_adapter_kwargs.update(self.vit_adapter_kwargs)
             
@@ -108,9 +147,10 @@ class FineTuner(pl.LightningModule):
         img_h, img_w = img.shape[2:]
         patches_h, patches_w = img_h // self.patch_size, img_w // self.patch_size
 
-        print("Forwarding encoder with image size:", img.shape,
-              "patch size:", self.patch_size,
-              "patches (H, W):", (patches_h, patches_w))
+        # For debug purposes
+        # print("Forwarding encoder with image size:", img.shape,
+        #       "patch size:", self.patch_size,
+        #       "patches (H, W):", (patches_h, patches_w))
 
         if self.use_vit_adapter:
             features = self.encoder(img) 
