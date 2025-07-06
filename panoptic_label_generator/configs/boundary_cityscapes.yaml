@@ -15,16 +15,20 @@ trainer:
         every_n_epochs: 10
 
 model:
-  dinov2_vit_model: "vits14"
+  dinov2_vit_model: "vitb14"
   mode: "direct"
   upsample_factor: 4.0
-  head: "knn"
+  head: "mlp"
   neighbor_radius: 1.5
   threshold_boundary: 0.93
   num_boundary_neighbors: 1
   test_output_size: ${data_params.image_size_original}
   test_multi_scales: [3, 4, 5]
   test_plot: False
+   
+  # ViT Adapter settings
+  use_vit_adapter: True
+
 
 data:
   class_path: datasets.cityscapes.CityscapesDataModule
@@ -75,6 +79,7 @@ data_params:
   image_size_input:  [504, 1008]
   image_mean: [0.485, 0.456, 0.406]
   image_std: [0.229, 0.224, 0.225]
+
 
 ckpt_path: null
 

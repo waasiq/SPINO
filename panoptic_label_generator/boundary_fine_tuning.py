@@ -47,6 +47,19 @@ class BoundaryFineTuner(FineTuner):
         List of scales to use for multi-scale during prediction/testing e.g. [1, 2, 3].
     test_plot : bool
         Whether to plot the predictions during testing.
+    use_vit_adapter : bool
+        Whether to use a ViTAdapter for the DINOv2 model. If True,
+        `dinov2_vit_model` should be one of ['vits14', '
+        vitl14', 'vitg14', 'vitb14'].
+    vit_adapter_kwargs : Dict[str, Any]
+        Additional keyword arguments for the ViTAdapter. If `use_vit_adapter` is True, this
+        should contain the `interaction_indexes` key with a list of lists of interaction indexes
+        for the ViTAdapter. If not provided, default interaction indexes will be used based on
+        the DINOv2 model architecture:
+        - 'vits14': [[3, 5, 7], [6, 8, 10], [9, 11, 11]]
+        - 'vitb14': [[6, 8, 10], [9, 11, 13], [12, 14, 16]]
+        - 'vitl14': [[12, 15, 18], [15, 18, 21], [18, 21, 24]]
+        - 'vitg14': [[24, 29, 34], [29, 34, 39], [34, 39, 43]]
     """
 
     def __init__(self, dinov2_vit_model: str, mode: str = 'direct',
@@ -55,9 +68,14 @@ class BoundaryFineTuner(FineTuner):
                  num_boundary_neighbors: int = 1,
                  test_output_size: Optional[Tuple[int, int]] = None,
                  test_multi_scales: Optional[List[int]] = None,
-                 test_plot: bool = False):
+                 test_plot: bool = False,
+                 use_vit_adapter: bool = False,
+                 vit_adapter_kwargs: Optional[Dict[str, Any]] = None
+                ):
+
         super().__init__(dinov2_vit_model=dinov2_vit_model, blocks=None,
-                         upsample_factor=upsample_factor)
+                         upsample_factor=upsample_factor, use_vit_adapter=use_vit_adapter, 
+                         vit_adapter_kwargs=vit_adapter_kwargs)
         assert mode in ['affinity', 'direct']
         self.mode = mode
         self.neighbor_radius = neighbor_radius

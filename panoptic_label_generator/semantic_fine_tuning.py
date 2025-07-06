@@ -60,7 +60,10 @@ class SemanticFineTuner(FineTuner):
                  ignore_index: int = -100, top_k_percent_pixels: float = 1.0,
                  test_output_size: Optional[Tuple[int, int]] = None,
                  test_multi_scales: Optional[List[int]] = None,
-                 test_plot: bool = False, test_save_dir: Optional[str] = None):
+                 test_plot: bool = False, test_save_dir: Optional[str] = None,
+                 use_vit_adapter: bool = False,
+                 vit_adapter_kwargs: Optional[Dict[str, Any]] = None
+                ):
         super().__init__(dinov2_vit_model=dinov2_vit_model, blocks=blocks,
                          upsample_factor=upsample_factor)
         self.num_classes = num_classes
