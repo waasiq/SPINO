@@ -19,7 +19,7 @@ model:
   num_classes: ${data.init_args.num_classes}
   train_output_size: ${data_params.image_size_input}
   upsample_factor: 14.0
-  head: "knn"
+  head: "linear"
   ignore_index: 255
   top_k_percent_pixels: 0.2
   test_output_size: ${data_params.image_size_original}
