@@ -116,8 +116,8 @@ class FineTuner(pl.LightningModule):
                   f"patch_size: {self.patch_size}")
 
             # Freeze the ViT-Adapter encoder
-            for param in self.encoder.parameters():
-                param.requires_grad = False
+            # for param in self.encoder.parameters():
+            #     param.requires_grad = False
             
         else: # Default DINOv2 model
             if dinov2_vit_model == 'vits14':
@@ -153,13 +153,15 @@ class FineTuner(pl.LightningModule):
         #       "patches (H, W):", (patches_h, patches_w))
 
         if self.use_vit_adapter:
-            features = self.encoder(img) 
+            features = self.encoder(img)  # Returns [f1, f2, f3, f4] multi-scale features
 
             if self.upsample_factor is not None:
+                # Use the highest resolution feature (f1) and upsample it
                 network_output_size = (int(patches_h * self.upsample_factor), int(patches_w * self.upsample_factor))
                 encoder_output_feature = F.interpolate(features[0], size=network_output_size, mode='bilinear', align_corners=False)
             else:
-                encoder_output_feature = features[1] # Default to 1/8 resolution
+                # Use f2 (1/4 resolution) as default, which is better than f1 (1/2 resolution) for most tasks
+                encoder_output_feature = features[1] 
             
             return encoder_output_feature 
         else: 

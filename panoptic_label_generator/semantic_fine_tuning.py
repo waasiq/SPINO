@@ -88,7 +88,14 @@ class SemanticFineTuner(FineTuner):
         self.test_plot = test_plot
         self.test_save_dir = test_save_dir
 
-        head_input_dim = self.feat_dim * self.num_blocks
+        # Fix head input dimension for ViT adapter vs regular DINOv2
+        if self.use_vit_adapter:
+            # ViT adapter returns multi-scale features, use the embed_dim directly
+            head_input_dim = self.feat_dim  # This is embed_dim from ViT adapter
+        else:
+            # Regular DINOv2 uses feat_dim * num_blocks
+            head_input_dim = self.feat_dim * self.num_blocks
+            
         if head == 'linear':
             self.head = nn.Conv2d(head_input_dim, num_classes, kernel_size=1, stride=1, padding=0)
         elif head == 'knn':
