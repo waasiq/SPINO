@@ -105,7 +105,11 @@ class InstanceCluster(pl.LightningModule):
         self.id_color_array = (id_color_array * 255).astype(np.uint8)
 
     def get_dataset(self) -> Dataset:
-        dataset = self.trainer.test_dataloaders[0].dataset
+        test_dataloaders = self.trainer.test_dataloaders
+        if isinstance(test_dataloaders, list):
+            dataset = test_dataloaders[0].dataset
+        else:
+            dataset = test_dataloaders.dataset
         return dataset
 
     def predict(self, rgb: torch.Tensor, rgb_original: torch.Tensor,
