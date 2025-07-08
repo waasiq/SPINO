@@ -12,6 +12,9 @@ import logging
 from typing import Tuple, Union
 
 from torch import Tensor, nn
+import loralib as lora 
+
+print("✅ Using LoRA-modified attention from:", __file__)
 
 logger = logging.getLogger("dinov2")
 
@@ -40,7 +43,8 @@ class Attention(nn.Module):
         head_dim = dim // num_heads
         self.scale = head_dim**-0.5
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
+        #self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
+        self.qkv = lora.Linear(dim, dim * 3, r=4, lora_alpha=16, bias=qkv_bias)
         self.attn_drop = nn.Dropout(attn_drop)
         self.proj = nn.Linear(dim, dim, bias=proj_bias)
         self.proj_drop = nn.Dropout(proj_drop)

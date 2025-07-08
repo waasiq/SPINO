@@ -29,12 +29,17 @@ class FineTuner(pl.LightningModule):
             self.encoder = dinov2_vitg14(pretrained=True)
         else:
             raise ValueError(f'Unknown model {dinov2_vit_model}')
-
+ 
         self.feat_dim = self.encoder.num_features
         self.patch_size = self.encoder.patch_size
         self.encoder.mask_token = None  # can't use ddp_find_unused_parameters_false otherwise
-        for param in self.encoder.parameters():  # freeze backbone
-            param.requires_grad = False
+
+        for name,param in self.encoder.named_parameters():  # freeze backbone
+            if 'lora_' not in name:
+                param.requires_grad = False
+
+        trainable_params = sum(p.numel() for p in self.encoder.parameters() if p.requires_grad)
+        print(f"[LoRA] Trainable encoder parameters: {trainable_params}")
 
         if blocks is None:
             self.num_blocks = 1

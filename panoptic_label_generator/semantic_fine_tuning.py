@@ -1,5 +1,4 @@
-
-from fine_tuning_adapter import FineTunerAdapter
+#from fine_tuning_adapter import FineTunerAdapter
 
 import warnings
 from typing import Any, Dict, List, Optional, Tuple
@@ -10,8 +9,8 @@ import torch
 import torch.nn.functional as F
 import torchvision.transforms as T
 import torchvision.transforms.functional as TF
-# from fine_tuning import FineTuner
-from fine_tuning_adapter import FineTunerAdapter  # <-- We'll create this file
+from fine_tuning import FineTuner
+from fine_tuning_adapter import FineTunerAdapter 
 
 from PIL import Image
 from pytorch_lightning.cli import LightningCLI
@@ -27,7 +26,7 @@ warnings.filterwarnings(
 warnings.filterwarnings('ignore', '.*Only one label was provided to `remove_small_objects`*')
 
 
-class SemanticFineTuner(FineTunerAdapter):
+class SemanticFineTuner(FineTuner):
     """Fine-tunes a small head on top of the DINOv2 model for semantic segmentation.
 
     Parameters

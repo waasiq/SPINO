@@ -11,15 +11,15 @@ trainer:
     - class_path: pytorch_lightning.callbacks.model_checkpoint.ModelCheckpoint
       init_args:
         dirpath: "checkpoints/"
-        filename: "semantic_cityscapes"
+        filename: "semantic_cityscapes_lora"
         every_n_epochs: 10
 
 model:
-  dinov2_vit_model: "vit_adapter"
+  dinov2_vit_model: "vits14"
   num_classes: ${data.init_args.num_classes}
   train_output_size: ${data_params.image_size_input}
   upsample_factor: 14.0
-  head: "linear"
+  head: "mlp"
   ignore_index: 255
   top_k_percent_pixels: 0.2
   test_output_size: ${data_params.image_size_original}
