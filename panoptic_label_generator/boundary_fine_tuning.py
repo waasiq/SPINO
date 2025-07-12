@@ -13,6 +13,8 @@ from sklearn.neighbors import KNeighborsClassifier, radius_neighbors_graph
 from torch import nn
 from torchvision.transforms import InterpolationMode
 
+from adapter.vit_adapter import ViTAdapter
+
 # Ignore some torch warnings
 warnings.filterwarnings('ignore', '.*The default behavior for interpolate/upsample with float*')
 warnings.filterwarnings(
@@ -55,7 +57,7 @@ class BoundaryFineTuner(FineTuner):
                  num_boundary_neighbors: int = 1,
                  test_output_size: Optional[Tuple[int, int]] = None,
                  test_multi_scales: Optional[List[int]] = None,
-                 test_plot: bool = False):
+                 test_plot: bool = False, use_vitadapter: bool = False,):
         super().__init__(dinov2_vit_model=dinov2_vit_model, blocks=None,
                          upsample_factor=upsample_factor)
         assert mode in ['affinity', 'direct']
@@ -66,6 +68,11 @@ class BoundaryFineTuner(FineTuner):
         self.test_output_size = test_output_size
         self.test_multi_scales = test_multi_scales
         self.test_plot = test_plot
+        self.use_vitadapter = use_vitadapter
+        if self.use_vitadapter:
+            self.vit_adapter = ViTAdapter(dinov2_vit_model=dinov2_vit_model)
+        else:
+            self.vit_adapter = None
 
         if self.mode == 'affinity':
             if self.head == 'mlp':
@@ -153,8 +160,10 @@ class BoundaryFineTuner(FineTuner):
 
     def forward(self, img: torch.Tensor, connected_indices: np.array = None,
                 segment_mask=None) -> torch.Tensor:
-        x = self.forward_encoder(img)  # (B, feat_dim, H, W)
-
+        if self.use_vitadapter:
+            x = self.vit_adapter.forward(img)
+        else:
+            x = self.forward_encoder(img)
         if self.mode == 'affinity':
             batch_size = x.shape[0]
             h = x.shape[2]
