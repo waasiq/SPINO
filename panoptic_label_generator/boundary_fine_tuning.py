@@ -106,7 +106,7 @@ class BoundaryFineTuner(FineTuner):
                 )
             elif head == 'mlp':
                 self.head = nn.Sequential(
-                    nn.Conv2d(self.feat_dim, 600, kernel_size=1, stride=1, padding=0),
+                    nn.Conv2d(4 * self.feat_dim, 600, kernel_size=1, stride=1, padding=0),
                     nn.ReLU(),
                     nn.Conv2d(600, 600, kernel_size=1, stride=1, padding=0),
                     nn.ReLU(),
@@ -161,7 +161,17 @@ class BoundaryFineTuner(FineTuner):
     def forward(self, img: torch.Tensor, connected_indices: np.array = None,
                 segment_mask=None) -> torch.Tensor:
         if self.use_vitadapter:
-            x = self.vit_adapter.forward(img)
+            f1, f2, f3, f4 = self.vit_adapter.forward(img)
+            _, _, h_f1, w_f1 = f1.shape
+
+            # Upsample f2, f3, f4 to the same resolution as f1
+            # Assuming f1, f2, f3, f4 have the same 'dim' (channels)
+            f2_upsampled = F.interpolate(f2, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
+            f3_upsampled = F.interpolate(f3, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
+            f4_upsampled = F.interpolate(f4, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
+
+            x = torch.cat([f1, f2_upsampled, f3_upsampled, f4_upsampled], dim=1)
+            #print(f"Shape of x after concatenation: {x.shape}")
         else:
             x = self.forward_encoder(img)
         if self.mode == 'affinity':
@@ -185,7 +195,7 @@ class BoundaryFineTuner(FineTuner):
             x = torch.cat((x1, x2), dim=1)  # (B*I, 2*feat_dim)
             x = x.view(batch_size, -1, 2 * self.feat_dim)  # (B, I, 2*feat_dim)
             x = self.head(x)  # (B, I, 1)
-            x = torch.sigmoid(x)  # (B, I, 1)
+            #x = torch.sigmoid(x)  # (B, I, 1)
         elif self.mode == 'direct':
             if isinstance(self.head, KNeighborsClassifier):
                 if self.training:

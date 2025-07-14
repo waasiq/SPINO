@@ -1,0 +1,15 @@
+Pos_weight calculation results for Cityscapes boundary detection
+Dataset path: /work/dlclarge2/masoodw-spino100/dl-lab/cityscapes
+Configuration:
+  - patch_size: 14
+  - upsample_factor: 3.5
+  - neighbor_radius: 1.5
+  - num_boundary_neighbors: 1
+
+Results:
+  - Total Boundary Pixels: 8691563
+  - Total Non-Boundary Pixels: 378965812
+  - Calculated pos_weight: 43.60157223735248
+
+Recommended BCEWithLogitsLoss configuration:
+criterion = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor(43.60157223735248))

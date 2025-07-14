@@ -1,0 +1,29 @@
+/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torchvision/io/image.py:11: UserWarning: Failed to load image Python extension: libtorch_cuda_cu.so: cannot open shared object file: No such file or directory
+  warn(f"Failed to load image Python extension: {e}")
+/work/dlclarge2/masoodw-spino100/dl-lab/SPINO/panoptic_label_generator/external/ms_deformable_attention/functions/deform_attn_func.py:21: FutureWarning: `torch.cuda.amp.custom_fwd(args...)` is deprecated. Please use `torch.amp.custom_fwd(args..., device_type='cuda')` instead.
+  @custom_fwd(cast_inputs=torch.float32)
+/work/dlclarge2/masoodw-spino100/dl-lab/SPINO/panoptic_label_generator/external/ms_deformable_attention/functions/deform_attn_func.py:38: FutureWarning: `torch.cuda.amp.custom_bwd(args...)` is deprecated. Please use `torch.amp.custom_bwd(args..., device_type='cuda')` instead.
+  def backward(ctx, grad_output):
+[rank: 0] Seed set to 0
+xFormers not available
+xFormers not available
+panoptic_label_generator/instance_clustering.py:69: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  semantic_model_ckpt_dict = torch.load(semantic_model_ckpt, map_location='cpu')
+panoptic_label_generator/instance_clustering.py:74: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  boundary_model_ckpt_dict = torch.load(boundary_model_ckpt, map_location='cpu')
+/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/lightning_fabric/plugins/environments/slurm.py:204: The `srun` command is available on your system but is not used. HINT: If your intention is to run Lightning on SLURM, prepend your python command with `srun` like so: srun python panoptic_label_generator/instance_clustering.py test ...
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+HPU available: False, using: 0 HPUs
+Initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/1
+----------------------------------------------------------------------------------------------------
+distributed_backend=nccl
+All distributed processes registered. Starting with 1 processes
+----------------------------------------------------------------------------------------------------
+
+Collect Cityscapes frames [val]:   0%|          | 0/500 [00:00<?, ?it/s]Collect Cityscapes frames [val]:  42%|████▏     | 211/500 [00:00<00:00, 2107.69it/s]Collect Cityscapes frames [val]:  84%|████████▍ | 422/500 [00:00<00:00, 2106.68it/s]Collect Cityscapes frames [val]: 100%|██████████| 500/500 [00:00<00:00, 2105.20it/s]
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Testing: |          | 0/? [00:00<?, ?it/s]Testing:   0%|          | 0/500 [00:00<?, ?it/s]Testing DataLoader 0:   0%|          | 0/500 [00:00<?, ?it/s]Testing DataLoader 0:   0%|          | 1/500 [00:16<2:17:35,  0.06it/s]/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torch/functional.py:513: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3609.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+
+Detected KeyboardInterrupt, attempting graceful shutdown ...
