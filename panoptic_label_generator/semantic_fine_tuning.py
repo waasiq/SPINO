@@ -1,5 +1,3 @@
-#from fine_tuning_adapter import FineTunerAdapter
-
 import warnings
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -10,7 +8,6 @@ import torch.nn.functional as F
 import torchvision.transforms as T
 import torchvision.transforms.functional as TF
 from fine_tuning import FineTuner
-from fine_tuning_adapter import FineTunerAdapter 
 
 from PIL import Image
 from pytorch_lightning.cli import LightningCLI

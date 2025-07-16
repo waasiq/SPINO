@@ -14,35 +14,35 @@ model:
       num_classes: ${data.init_args.num_classes}
       train_output_size: ${data_params.image_size_input}
       upsample_factor: 14.0
-      head: "linear"
+      head: "mlp"
       ignore_index: 255
       top_k_percent_pixels: 0.2
       test_output_size: ${data_params.image_size_original}
       test_multi_scales: [ 1, 2, 3 ]
       test_plot: False
       test_save_dir: null
-  semantic_model_ckpt: "checkpoints/semantic_cityscapes_lora_linear.ckpt"
+  semantic_model_ckpt: "checkpoints/semantic_cityscapes_vitcomer_mlp.ckpt"
   boundary_model:
     class_path: boundary_fine_tuning.BoundaryFineTuner
     init_args:
       dinov2_vit_model: "vits14"
       mode: "direct"
       upsample_factor: 4.0
-      head: "linear"
+      head: "mlp"
       neighbor_radius: 1.5
       threshold_boundary: 0.93
       num_boundary_neighbors: 1
       test_output_size: ${data_params.image_size_original}
       test_multi_scales: [3, 4, 5]
       test_plot: False
-  boundary_model_ckpt: "checkpoints/boundary_cityscapes_lora_linear.ckpt"
+  boundary_model_ckpt: "checkpoints/boundary_cityscapes_vitcomer_mlp.ckpt"
   structure_connectivity: [[0, 1, 0], [1, 1, 1], [0, 1, 0]]
   instance_min_pixel: 500
   erosion_structure: [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
   erosion_iterations: 0
   output_size: ${data_params.image_size_original}
   test_plot: False
-  test_save_dir: "results/cityscapes_lora_linear"
+  test_save_dir: "results/cityscapes_vitcomer_mlp"
   test_save_vis: True
 
 data:
