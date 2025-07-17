@@ -13,7 +13,7 @@ from sklearn.neighbors import KNeighborsClassifier, radius_neighbors_graph
 from torch import nn
 from torchvision.transforms import InterpolationMode
 
-from adapter.vit_adapter import ViTAdapter
+from models.vit_adapter.vit_adapter import ViTAdapter
 
 # Ignore some torch warnings
 warnings.filterwarnings('ignore', '.*The default behavior for interpolate/upsample with float*')

@@ -17,9 +17,8 @@ from typing import List, Optional, Callable, Sequence, Tuple, Union
 import logging
 from functools import partial
 
-from adapter.adapter_modules import SpatialPriorModule, InteractionBlockWithCls, deform_inputs
-from adapter.dino_transformer import DinoVisionTransformer
-
+from models.vit_adapter.adapter_modules import SpatialPriorModule, InteractionBlockWithCls, deform_inputs
+from models.vit_adapter.dino_transformer import DinoVisionTransformer
 
 #! Params for the vit-small: embed_dim = 384
 #! Params for the vit-base: embed_dim = 768

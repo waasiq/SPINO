@@ -11,8 +11,7 @@ from torch.nn.init import trunc_normal_
 from models.vit.layers import MemEffAttention, Mlp
 from models.vit.layers import NestedTensorBlock as Block
 from models.vit.layers import  SwiGLUFFNFused
-
-from adapter.patch_embed import PatchEmbed
+from models.vit_adapter.patch_embed import PatchEmbed
 
 logger = logging.getLogger("dinov2")
 
