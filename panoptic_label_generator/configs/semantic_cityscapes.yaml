@@ -23,9 +23,10 @@ model:
   ignore_index: 255
   top_k_percent_pixels: 0.2
   test_output_size: ${data_params.image_size_original}
-  test_multi_scales: [1, 2, 3]
+  test_multi_scales: [1, 2] # [1, 2, 3]
   test_plot: False
-  use_vitadapter: true
+  use_vitadapter: False
+  use_vitcomer: True 
 
 data:
   class_path: datasets.cityscapes.CityscapesDataModule
@@ -79,10 +80,11 @@ data_params:
 
 ckpt_path: null
 
+# Lr for vit adapter and comer was set to 0.0001 and 0.001
 optimizer:
   class_path: torch.optim.Adam
   init_args:
-    lr: 0.001
+    lr: 0.0001
 
 lr_scheduler:
   class_path: torch.optim.lr_scheduler.CosineAnnealingLR

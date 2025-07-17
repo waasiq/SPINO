@@ -10,31 +10,52 @@ from models.dino_v2 import (
 )
 from torch import nn
 
+from models.vit_adapter.vit_adapter import ViTAdapter
+from models.vit_comer.vit_comer import ViTCoMer
 
 class FineTuner(pl.LightningModule):
     def __init__(self, dinov2_vit_model: str, blocks: Optional[List[int]] = None,
-                 upsample_factor: Optional[float] = None):
+                 upsample_factor: Optional[float] = None, use_vitadapter: bool = False, use_vitcomer: bool = False):
         super().__init__()
         self.dinov2_vit_model = dinov2_vit_model
         self.blocks = blocks
         self.upsample_factor = upsample_factor
+        self.use_vitadapter = use_vitadapter
+        self.use_vitcomer = use_vitcomer
 
+        if use_vitadapter and use_vitcomer:
+            raise ValueError("Cannot use both ViTAdapter and ViTCoMer at the same time. Choose one.")
+
+        if self.use_vitadapter: 
+            self.encoder = ViTAdapter()
+            print(f'[ENCODER] Using encoder: ViTAdapter')
+        elif self.use_vitcomer:
+            self.encoder = ViTCoMer()
+            print(f'[ENCODER] Using encoder: ViTCoMeR')
         if dinov2_vit_model == 'vits14':
             self.encoder = dinov2_vits14(pretrained=True)
+            print(f'[ENCODER] Using encoder: ViT-S14')
         elif dinov2_vit_model == 'vitb14':
             self.encoder = dinov2_vitb14(pretrained=True)
+            print(f'[ENCODER] Using encoder: ViT-B14')
         elif dinov2_vit_model == 'vitl14':
             self.encoder = dinov2_vitl14(pretrained=True)
+            print(f'[ENCODER] Using encoder: ViT-L14')
         elif dinov2_vit_model == 'vitg14':
             self.encoder = dinov2_vitg14(pretrained=True)
+            print(f'[ENCODER] Using encoder: ViT-G14')
         else:
             raise ValueError(f'Unknown model {dinov2_vit_model}')
+
+
+        # Freeze the encoder if not using adapter or comer
+        if self.use_vitadapter == False and self.use_vitcomer == False:
+            for param in self.encoder.parameters():
+                param.requires_grad = False
 
         self.feat_dim = self.encoder.num_features
         self.patch_size = self.encoder.patch_size
         self.encoder.mask_token = None  # can't use ddp_find_unused_parameters_false otherwise
-        for param in self.encoder.parameters():  # freeze backbone
-            param.requires_grad = False
 
         if blocks is None:
             self.num_blocks = 1
@@ -46,6 +67,22 @@ class FineTuner(pl.LightningModule):
         patches_h, patches_w = img_h // self.patch_size, img_w // self.patch_size
 
         return_attention_features = any([(feature_key in x) for x in ['q', 'k', 'v', 'attn']])
+
+        # Logic for ViTAdapter and ViTCoMer
+        if self.use_vitadapter or self.use_vitcomer:
+            f1, f2, f3, f4 = self.encoder.forward(img)
+            _, _, h_f1, w_f1 = f1.shape
+
+            # Upsample f2, f3, f4 to the same resolution as f1
+            # Assuming f1, f2, f3, f4 have the same 'dim' (channels)
+            f2_upsampled = F.interpolate(f2, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
+            f3_upsampled = F.interpolate(f3, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
+            f4_upsampled = F.interpolate(f4, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
+
+            x = torch.cat([f1, f2_upsampled, f3_upsampled, f4_upsampled], dim=1)
+            return x
+    
+        # Default behavior for other models
         with torch.no_grad():
             block_outputs = self.encoder.forward_features(
                 img,

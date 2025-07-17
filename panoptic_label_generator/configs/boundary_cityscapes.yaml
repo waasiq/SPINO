@@ -25,7 +25,8 @@ model:
   test_output_size: ${data_params.image_size_original}
   test_multi_scales: [3, 4, 5]
   test_plot: False
-  use_vitadapter: True
+  use_vitadapter: False
+  use_vitcomer: True 
 
 data:
   class_path: datasets.cityscapes.CityscapesDataModule
@@ -79,19 +80,19 @@ data_params:
 
 ckpt_path: null
 
-# Lr for vit adapter was set to 0.0001 and 0.001
+# Lr for vit adapter and comer was set to 0.0001 and 0.001
 optimizer:
   class_path: torch.optim.Adam
   init_args:
     lr: 0.0001 
 
-# lr_scheduler:
-#   class_path: torch.optim.lr_scheduler.CosineAnnealingLR
-#   init_args:
-#     T_max: ${trainer.max_epochs}
+lr_scheduler:
+  class_path: torch.optim.lr_scheduler.CosineAnnealingLR
+  init_args:
+    T_max: ${trainer.max_epochs}
 
 # This lr_scheduler is for vit-adapter. 
-lr_scheduler:
-  class_path: torch.optim.lr_scheduler.StepLR
-  init_args:
-    step_size: 500
+# lr_scheduler:
+#   class_path: torch.optim.lr_scheduler.StepLR
+#   init_args:
+#     step_size: 500

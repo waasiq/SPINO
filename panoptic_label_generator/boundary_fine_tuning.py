@@ -67,12 +67,16 @@ class BoundaryFineTuner(FineTuner):
     def __init__(self, dinov2_vit_model: str, mode: str = 'direct',
                  upsample_factor: Optional[float] = None, head: str = 'mlp',
                  neighbor_radius: float = 1.5, threshold_boundary: float = 0.95,
-                 num_boundary_neighbors: int = 1, use_vitadapter: bool = False,
+                 num_boundary_neighbors: int = 1, 
                  test_output_size: Optional[Tuple[int, int]] = None,
                  test_multi_scales: Optional[List[int]] = None,
-                 test_plot: bool = False):
+                 test_plot: bool = False, use_vitadapter: bool = False, use_vitcomer: bool = False):
+
         super().__init__(dinov2_vit_model=dinov2_vit_model, blocks=None,
-                         upsample_factor=upsample_factor)
+                         upsample_factor=upsample_factor, use_vitadapter=use_vitadapter,
+                         use_vitcomer=use_vitcomer
+                        )
+    
         assert mode in ['affinity', 'direct']
         self.mode = mode
         self.neighbor_radius = neighbor_radius
@@ -81,13 +85,9 @@ class BoundaryFineTuner(FineTuner):
         self.test_output_size = test_output_size
         self.test_multi_scales = test_multi_scales
         self.test_plot = test_plot
-        self.use_vitadapter = use_vitadapter
-        if self.use_vitadapter:
-            self.vit_adapter = ViTAdapter()
-        else:
-            self.vit_adapter = None
 
         if self.mode == 'affinity':
+            #! Need to implement ViT Comer and Adapter fix for featdim here 
             if self.head == 'mlp':
                 self.head = nn.Sequential(
                     nn.Linear(2 * self.feat_dim, 600),
@@ -101,7 +101,7 @@ class BoundaryFineTuner(FineTuner):
             else:
                 raise NotImplementedError
         elif self.mode == 'direct':
-            if self.use_vitadapter:
+            if self.use_vitadapter or self.use_vitcomer:
                 feat_dim = 4 * self.feat_dim
             else:
                 feat_dim = self.feat_dim
@@ -178,21 +178,7 @@ class BoundaryFineTuner(FineTuner):
 
     def forward(self, img: torch.Tensor, connected_indices: np.array = None,
                 segment_mask=None) -> torch.Tensor:
-        if self.use_vitadapter:
-            print("Using ViTAdapter for DINOv2 model.")
-            f1, f2, f3, f4 = self.vit_adapter.forward(img)
-            _, _, h_f1, w_f1 = f1.shape
-
-            # Upsample f2, f3, f4 to the same resolution as f1
-            # Assuming f1, f2, f3, f4 have the same 'dim' (channels)
-            f2_upsampled = F.interpolate(f2, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
-            f3_upsampled = F.interpolate(f3, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
-            f4_upsampled = F.interpolate(f4, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
-
-            x = torch.cat([f1, f2_upsampled, f3_upsampled, f4_upsampled], dim=1)
-        else:
-            print("Using DINOv2 model without ViTAdapter.")
-            x = self.forward_encoder(img) # (B, feat_dim, H, W)
+        x = self.forward_encoder(img) # (B, feat_dim, H, W)
 
         if self.mode == 'affinity':
             batch_size = x.shape[0]

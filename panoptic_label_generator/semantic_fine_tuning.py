@@ -60,10 +60,14 @@ class SemanticFineTuner(FineTuner):
                  head: str = 'mlp',
                  ignore_index: int = -100, top_k_percent_pixels: float = 1.0,
                  test_output_size: Optional[Tuple[int, int]] = None,
-                 test_multi_scales: Optional[List[int]] = None, use_vitadapter: bool = False,
+                 test_multi_scales: Optional[List[int]] = None, 
+                 use_vitadapter: bool = False, use_vitcomer: bool = False,
                  test_plot: bool = False, test_save_dir: Optional[str] = None):
+
         super().__init__(dinov2_vit_model=dinov2_vit_model, blocks=blocks,
-                         upsample_factor=upsample_factor)
+                         upsample_factor=upsample_factor, use_vitadapter=use_vitadapter,
+                         use_vitcomer=use_vitcomer)
+
         self.num_classes = num_classes
         self.train_output_size = train_output_size
         self.ignore_index = ignore_index
@@ -72,13 +76,10 @@ class SemanticFineTuner(FineTuner):
         self.test_multi_scales = test_multi_scales
         self.test_plot = test_plot
         self.test_save_dir = test_save_dir
-        self.use_vitadapter = use_vitadapter
 
-        if self.use_vitadapter:
-            self.vit_adapter = ViTAdapter()
+        if self.use_vitadapter or self.use_vitcomer:
             head_input_dim = 4 * (self.feat_dim * self.num_blocks)
         else:
-            self.vit_adapter = None
             head_input_dim = self.feat_dim * self.num_blocks
 
         if head == 'linear':
@@ -111,24 +112,7 @@ class SemanticFineTuner(FineTuner):
             raise ValueError(f'Unknown head {head}')
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if self.use_vitadapter:
-            print("Using ViTAdapter for DINOv2 model.")
-            # Get the list of multi-scale features
-            f1, f2, f3, f4 = self.vit_adapter.forward(x)
-
-            # Determine the target resolution for concatenation (highest resolution feature)
-            _, _, h_f1, w_f1 = f1.shape
-
-            # Upsample f2, f3, f4 to the same resolution as f1
-            f2_upsampled = F.interpolate(f2, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
-            f3_upsampled = F.interpolate(f3, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
-            f4_upsampled = F.interpolate(f4, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
-
-            # Concatenate the features along the channel dimension
-            x = torch.cat([f1, f2_upsampled, f3_upsampled, f4_upsampled], dim=1)
-        else: 
-            print("Using DINOv2 model without ViTAdapter.")
-            x = self.forward_encoder(x)  # (B, feat_dim, H, W)
+        x = self.forward_encoder(x)  # (B, feat_dim, H, W)
 
         if isinstance(self.head, KNeighborsClassifier):
             if self.training:

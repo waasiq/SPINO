@@ -18,7 +18,7 @@ import logging
 from functools import partial
 
 from models.vit_adapter.adapter_modules import SpatialPriorModule, InteractionBlockWithCls, deform_inputs
-from models.vit_adapter.dino_transformer import DinoVisionTransformer
+from models.dino_transformer import DinoVisionTransformer
 
 #! Params for the vit-small: embed_dim = 384
 #! Params for the vit-base: embed_dim = 768
@@ -31,6 +31,8 @@ class ViTAdapter(DinoVisionTransformer):
                  use_extra_extractor=True, with_cp=False, num_tokens=1):
 
         super().__init__()
+        
+        #! Change this to dynamic loading later on
         url = 'https://dl.fbaipublicfiles.com/dinov2/dinov2_vitb14/dinov2_vitb14_pretrain.pth'
         state_dict = torch.hub.load_state_dict_from_url(url, map_location="cpu")
         self.load_state_dict(state_dict, strict=True)
