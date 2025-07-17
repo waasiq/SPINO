@@ -15,7 +15,7 @@ trainer:
         every_n_epochs: 10
 
 model:
-  dinov2_vit_model: "vits14"
+  dinov2_vit_model: "vitb14"
   mode: "direct"
   upsample_factor: 4.0
   head: "mlp"
@@ -25,19 +25,14 @@ model:
   test_output_size: ${data_params.image_size_original}
   test_multi_scales: [3, 4, 5]
   test_plot: False
-   
-  # ViT Adapter settings
-  use_vit_adapter: True
-
-  # Add ViT params later on. 
-
+  use_vitadapter: True
 
 data:
   class_path: datasets.cityscapes.CityscapesDataModule
   init_args:
     cfg_dataset:
       name: "cityscapes"
-      path: "/work/dlclarge2/masoodw-spino100/cityscapes" # SET THE PATH TO THE CITYSCAPES DATASET
+      path: "/work/dlclarge2/masoodw-spino100/dl-lab/cityscapes" # SET THE PATH TO THE CITYSCAPES DATASET
       feed_img_size: ${data_params.image_size_original}
       offsets: [0]
       remove_classes: []
@@ -78,19 +73,24 @@ data:
 
 data_params:
   image_size_original: [1024, 2048]
-  image_size_input:  [504, 1008]
+  image_size_input: [448, 896]
   image_mean: [0.485, 0.456, 0.406]
   image_std: [0.229, 0.224, 0.225]
-
 
 ckpt_path: null
 
 optimizer:
   class_path: torch.optim.Adam
   init_args:
-    lr: 0.001
+    lr: 0.001 # Lr for vit adapter was set to 0.0001
 
 lr_scheduler:
   class_path: torch.optim.lr_scheduler.CosineAnnealingLR
   init_args:
     T_max: ${trainer.max_epochs}
+
+# This lr_scheduler is for vit-adapter. 
+# lr_scheduler:
+#   class_path: torch.optim.lr_scheduler.StepLR
+#   init_args:
+#     step_size: 500

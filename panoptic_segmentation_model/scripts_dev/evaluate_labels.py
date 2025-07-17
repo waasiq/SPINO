@@ -12,7 +12,11 @@ import socket
 
 import torch
 from algos import BinaryMaskLoss, CenterLoss, InstanceSegAlgo, OffsetLoss
+<<<<<<< HEAD
 from datasets import Cityscapes, Kitti360
+=======
+from datasets import Cityscapes
+>>>>>>> waasiq-adapter
 from eval import PanopticEvaluator, SemanticEvaluator
 from io_utils.visualizations import plot_confusion_matrix
 from misc import train_utils
@@ -47,6 +51,7 @@ dataset_cfg.normalization.active = False
 #subset_indices = list(range(0, 500, 10))
 
 # Create dataloader for ground truth and predicted labels
+<<<<<<< HEAD
 if args.dataset_name == "kitti_360":
     dataset_cfg.feed_img_size = [376, 1408]
     dataset_cfg.small_instance_area_full_res = 1034
@@ -66,6 +71,10 @@ if args.dataset_name == "kitti_360":
                             sequence_reference_mode=dataset_cfg.sequence_reference_mode)
 
 elif args.dataset_name == "cityscapes":
+=======
+
+if args.dataset_name == "cityscapes":
+>>>>>>> waasiq-adapter
     dataset_cfg.feed_img_size = [1024, 2048]
     dataset_cfg.small_instance_area_full_res = 4096
     dataset_cfg.train_split = "train"

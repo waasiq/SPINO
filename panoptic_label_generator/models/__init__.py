@@ -1,3 +1,1 @@
-from .dino_vit_adapter import ViTAdapter
-
-__all__ = ['ViTAdapter']
+from .dino_v2 import *

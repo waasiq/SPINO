@@ -1,1 +1,1 @@
-from models.vit_adapter import *
+# Adapter package for fine-tuning models

@@ -13,6 +13,8 @@ from sklearn.neighbors import KNeighborsClassifier, radius_neighbors_graph
 from torch import nn
 from torchvision.transforms import InterpolationMode
 
+from models.vit_adapter.vit_adapter import ViTAdapter
+
 # Ignore some torch warnings
 warnings.filterwarnings('ignore', '.*The default behavior for interpolate/upsample with float*')
 warnings.filterwarnings(
@@ -65,17 +67,12 @@ class BoundaryFineTuner(FineTuner):
     def __init__(self, dinov2_vit_model: str, mode: str = 'direct',
                  upsample_factor: Optional[float] = None, head: str = 'mlp',
                  neighbor_radius: float = 1.5, threshold_boundary: float = 0.95,
-                 num_boundary_neighbors: int = 1,
+                 num_boundary_neighbors: int = 1, use_vitadapter: bool = False,
                  test_output_size: Optional[Tuple[int, int]] = None,
                  test_multi_scales: Optional[List[int]] = None,
-                 test_plot: bool = False,
-                 use_vit_adapter: bool = False,
-                 vit_adapter_kwargs: Optional[Dict[str, Any]] = None
-                ):
-
+                 test_plot: bool = False):
         super().__init__(dinov2_vit_model=dinov2_vit_model, blocks=None,
-                         upsample_factor=upsample_factor, use_vit_adapter=use_vit_adapter, 
-                         vit_adapter_kwargs=vit_adapter_kwargs)
+                         upsample_factor=upsample_factor)
         assert mode in ['affinity', 'direct']
         self.mode = mode
         self.neighbor_radius = neighbor_radius
@@ -84,6 +81,11 @@ class BoundaryFineTuner(FineTuner):
         self.test_output_size = test_output_size
         self.test_multi_scales = test_multi_scales
         self.test_plot = test_plot
+        self.use_vitadapter = use_vitadapter
+        if self.use_vitadapter:
+            self.vit_adapter = ViTAdapter()
+        else:
+            self.vit_adapter = None
 
         if self.mode == 'affinity':
             if self.head == 'mlp':
@@ -99,15 +101,20 @@ class BoundaryFineTuner(FineTuner):
             else:
                 raise NotImplementedError
         elif self.mode == 'direct':
+            if self.use_vitadapter:
+                feat_dim = 4 * self.feat_dim
+            else:
+                feat_dim = self.feat_dim
+                
             if head == 'linear':
-                self.head = nn.Conv2d(self.feat_dim, 1, kernel_size=1, stride=1, padding=0)
+                self.head = nn.Conv2d(feat_dim, 1, kernel_size=1, stride=1, padding=0)
             elif head == 'knn':
                 self.head = KNeighborsClassifier(n_neighbors=5, leaf_size=10)
                 self.knn_X = []
                 self.knn_y = []
             elif head == 'cnn':
                 self.head = nn.Sequential(
-                    nn.Conv2d(self.feat_dim, 600, kernel_size=3, stride=1, padding=1),
+                    nn.Conv2d(feat_dim, 600, kernel_size=3, stride=1, padding=1),
                     nn.ReLU(),
                     nn.Conv2d(600, 600, kernel_size=3, stride=1, padding=1),
                     nn.ReLU(),
@@ -115,9 +122,9 @@ class BoundaryFineTuner(FineTuner):
                     nn.ReLU(),
                     nn.Conv2d(400, 1, kernel_size=3, stride=1, padding=1),
                 )
-            elif head == 'mlp':
+            elif head == 'mlp': 
                 self.head = nn.Sequential(
-                    nn.Conv2d(self.feat_dim, 600, kernel_size=1, stride=1, padding=0),
+                    nn.Conv2d(feat_dim, 600, kernel_size=1, stride=1, padding=0),
                     nn.ReLU(),
                     nn.Conv2d(600, 600, kernel_size=1, stride=1, padding=0),
                     nn.ReLU(),
@@ -171,7 +178,19 @@ class BoundaryFineTuner(FineTuner):
 
     def forward(self, img: torch.Tensor, connected_indices: np.array = None,
                 segment_mask=None) -> torch.Tensor:
-        x = self.forward_encoder(img)  # (B, feat_dim, H, W)
+        if self.use_vitadapter:
+            f1, f2, f3, f4 = self.vit_adapter.forward(img)
+            _, _, h_f1, w_f1 = f1.shape
+
+            # Upsample f2, f3, f4 to the same resolution as f1
+            # Assuming f1, f2, f3, f4 have the same 'dim' (channels)
+            f2_upsampled = F.interpolate(f2, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
+            f3_upsampled = F.interpolate(f3, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
+            f4_upsampled = F.interpolate(f4, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
+
+            x = torch.cat([f1, f2_upsampled, f3_upsampled, f4_upsampled], dim=1)
+        else:
+            x = self.forward_encoder(img) # (B, feat_dim, H, W)
 
         if self.mode == 'affinity':
             batch_size = x.shape[0]
@@ -423,8 +442,7 @@ class BoundaryFineTunerCLI(LightningCLI):
         )
 
     def add_arguments_to_parser(self, parser):
-        # Dataset
-        parser.add_argument('--data_params', type=Dict[str, Any]) 
+        parser.add_argument('--data_params', type=Dict[str, Any])
 
 
 if __name__ == '__main__':

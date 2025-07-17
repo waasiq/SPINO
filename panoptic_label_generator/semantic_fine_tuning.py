@@ -16,6 +16,8 @@ from torch import nn
 from torch.utils.data import Dataset
 from torchvision.transforms import InterpolationMode
 
+from models.vit_adapter.vit_adapter import ViTAdapter
+
 # Ignore some torch warnings
 warnings.filterwarnings('ignore', '.*The default behavior for interpolate/upsample with float*')
 warnings.filterwarnings(
@@ -25,7 +27,6 @@ warnings.filterwarnings('ignore', '.*Only one label was provided to `remove_smal
 
 class SemanticFineTuner(FineTuner):
     """Fine-tunes a small head on top of the DINOv2 model for semantic segmentation.
-
     Parameters
     ----------
     dinov2_vit_model : str
@@ -52,18 +53,6 @@ class SemanticFineTuner(FineTuner):
         Whether to plot the predictions during testing.
     test_save_dir : str
         Directory to save the predictions during testing.
-    use_vit_adapter : bool
-        Whether to use a ViTAdapter for the DINOv2 model. If True,
-        `dinov2_vit_model` should be one of ['vits14', 'vitb14', 'vitl14', 'vitg14'].
-    vit_adapter_kwargs : Dict[str, Any]
-        Additional keyword arguments for the ViTAdapter. If `use_vit_adapter` is True, this
-        should contain the `interaction_indexes` key with a list of lists of interaction indexes
-        for the ViTAdapter. If not provided, default interaction indexes will be used based on
-        the DINOv2 model architecture:
-        - 'vits14': [[0, 2], [3, 5], [6, 8], [9, 11]]
-        - 'vitb14': [[0, 2], [3, 5], [6, 8], [9, 11]]
-        - 'vitl14': [[0, 2], [3, 5], [6, 8], [9, 11]]
-        - 'vitg14': [[0, 2], [3, 5], [6, 8], [9, 11]]
     """
 
     def __init__(self, dinov2_vit_model: str, num_classes: int, train_output_size: Tuple[int, int],
@@ -71,14 +60,10 @@ class SemanticFineTuner(FineTuner):
                  head: str = 'mlp',
                  ignore_index: int = -100, top_k_percent_pixels: float = 1.0,
                  test_output_size: Optional[Tuple[int, int]] = None,
-                 test_multi_scales: Optional[List[int]] = None,
-                 test_plot: bool = False, test_save_dir: Optional[str] = None,
-                 use_vit_adapter: bool = False,
-                 vit_adapter_kwargs: Optional[Dict[str, Any]] = None
-                ):
+                 test_multi_scales: Optional[List[int]] = None, use_vitadapter: bool = False,
+                 test_plot: bool = False, test_save_dir: Optional[str] = None):
         super().__init__(dinov2_vit_model=dinov2_vit_model, blocks=blocks,
-                         upsample_factor=upsample_factor, use_vit_adapter=use_vit_adapter,
-                         vit_adapter_kwargs=vit_adapter_kwargs)
+                         upsample_factor=upsample_factor)
         self.num_classes = num_classes
         self.train_output_size = train_output_size
         self.ignore_index = ignore_index
@@ -87,15 +72,15 @@ class SemanticFineTuner(FineTuner):
         self.test_multi_scales = test_multi_scales
         self.test_plot = test_plot
         self.test_save_dir = test_save_dir
+        self.use_vitadapter = use_vitadapter
 
-        # Fix head input dimension for ViT adapter vs regular DINOv2
-        if self.use_vit_adapter:
-            # ViT adapter returns multi-scale features, use the embed_dim directly
-            head_input_dim = self.feat_dim  # This is embed_dim from ViT adapter
+        if self.use_vitadapter:
+            self.vit_adapter = ViTAdapter()
+            head_input_dim = 4 * (self.feat_dim * self.num_blocks)
         else:
-            # Regular DINOv2 uses feat_dim * num_blocks
+            self.vit_adapter = None
             head_input_dim = self.feat_dim * self.num_blocks
-            
+
         if head == 'linear':
             self.head = nn.Conv2d(head_input_dim, num_classes, kernel_size=1, stride=1, padding=0)
         elif head == 'knn':
@@ -126,7 +111,23 @@ class SemanticFineTuner(FineTuner):
             raise ValueError(f'Unknown head {head}')
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.forward_encoder(x)  # (B, feat_dim, H, W)
+        if self.use_vitadapter:
+            # Get the list of multi-scale features
+            f1, f2, f3, f4 = self.vit_adapter.forward(x)
+
+            # Determine the target resolution for concatenation (highest resolution feature)
+            _, _, h_f1, w_f1 = f1.shape
+
+            # Upsample f2, f3, f4 to the same resolution as f1
+            f2_upsampled = F.interpolate(f2, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
+            f3_upsampled = F.interpolate(f3, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
+            f4_upsampled = F.interpolate(f4, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
+
+            # Concatenate the features along the channel dimension
+            x = torch.cat([f1, f2_upsampled, f3_upsampled, f4_upsampled], dim=1)
+        else: 
+            x = self.forward_encoder(x)  # (B, feat_dim, H, W)
+
         if isinstance(self.head, KNeighborsClassifier):
             if self.training:
                 return x  # return only features during training
@@ -296,7 +297,6 @@ class SemanticFineTuner(FineTuner):
 
 
 class SemanticFineTunerCLI(LightningCLI):
-
     def __init__(self):
         super().__init__(
             model_class=SemanticFineTuner,
@@ -304,9 +304,7 @@ class SemanticFineTunerCLI(LightningCLI):
             parser_kwargs={'parser_mode': 'omegaconf'},
             save_config_callback=None,
         )
-
     def add_arguments_to_parser(self, parser):
-        # Dataset
         parser.add_argument('--data_params', type=Dict[str, Any])
 
 

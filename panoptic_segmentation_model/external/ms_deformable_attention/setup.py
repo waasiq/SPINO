@@ -40,7 +40,11 @@ def get_extensions():
             '-D__CUDA_NO_HALF2_OPERATORS__',
         ]
     else:
+<<<<<<< HEAD
         raise NotImplementedError('Cuda is not available')
+=======
+        raise NotImplementedError('Cuda is not availabel')
+>>>>>>> waasiq-adapter
 
     sources = [os.path.join(extensions_dir, s) for s in sources]
     include_dirs = [extensions_dir]
