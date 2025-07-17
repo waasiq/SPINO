@@ -27,48 +27,22 @@ def get_reference_points(spatial_shapes, device):
 
 def deform_inputs(x):
     bs, c, h, w = x.shape
+    spatial_shapes = torch.as_tensor([(h // 8, w // 8),
+                                      (h // 16, w // 16),
+                                      (h // 32, w // 32)],
+                                     dtype=torch.long, device=x.device)
+    level_start_index = torch.cat((spatial_shapes.new_zeros(
+        (1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
+    reference_points = get_reference_points([(h // 14, w // 14)], x.device)
+    deform_inputs1 = [reference_points, spatial_shapes, level_start_index]
 
-    # For Injector (Query = ViT patches, Value = SPM features)
-    # spatial_shapes for Injector's VALUE (SPM features c2, c3, c4)
-    # These MUST match the ACTUAL output dimensions from your SPM
-    spatial_shapes_injector_value = torch.as_tensor([
-        (63, 126),  # Confirmed c2 spatial shape (504/8=63, 1008/8=126)
-        (32, 63),   # Confirmed c3 spatial shape from your SPM logs
-        (16, 32)    # Confirmed c4 spatial shape from your SPM logs
-    ], dtype=torch.long, device=x.device)
-    
-    level_start_index_injector_value = torch.cat((spatial_shapes_injector_value.new_zeros((1,)),
-                                                 spatial_shapes_injector_value.prod(1).cumsum(0)[:-1]))
-
-    # Reference points for Injector's Query (ViT patches, 14x14 grid)
-    # The Injector MSDeformAttn has n_levels=3, so its reference_points must have that dim
-    ref_points_injector_query_raw = get_reference_points([(h // 14, w // 14)], x.device)
-    # Reshape reference points to match the target n_levels (3 for Injector's values)
-    reference_points_injector_query = ref_points_injector_query_raw.squeeze(2).unsqueeze(2).repeat(1, 1, 3, 1)
-
-    deform_inputs1 = [reference_points_injector_query, spatial_shapes_injector_value, level_start_index_injector_value]
-
-
-    # For Extractor (Query = SPM features, Value = ViT patches)
-    # spatial_shapes for Extractor's VALUE (ViT patches)
-    # This remains unchanged, based on 1/14 original image resolution
-    spatial_shapes_extractor_value = torch.as_tensor([(h // 14, w // 14)], dtype=torch.long, device=x.device)
-    level_start_index_extractor_value = torch.cat((spatial_shapes_extractor_value.new_zeros((1,)),
-                                                  spatial_shapes_extractor_value.prod(1).cumsum(0)[:-1]))
-
-    # Reference points for Extractor's Query (SPM features, all 3 levels concatenated)
-    # The Extractor MSDeformAttn has n_levels=1 (samples from single ViT patch level)
-    # The get_reference_points function for multiple inputs produces a single flattened sequence
-    # with a `1` in the 3rd dim, which is correct here.
-    ref_points_extractor_query_raw = get_reference_points([
-        (63, 126),  # Matched to c2
-        (32, 63),   # Matched to c3
-        (16, 32)    # Matched to c4
-    ], x.device)
-    # No repeat needed as it already has 1 in the 3rd dim and we want 1.
-    reference_points_extractor_query = ref_points_extractor_query_raw 
-
-    deform_inputs2 = [reference_points_extractor_query, spatial_shapes_extractor_value, level_start_index_extractor_value]
+    spatial_shapes = torch.as_tensor([(h // 14, w // 14)], dtype=torch.long, device=x.device)
+    level_start_index = torch.cat((spatial_shapes.new_zeros(
+        (1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
+    reference_points = get_reference_points([(h // 8, w // 8),
+                                             (h // 16, w // 16),
+                                             (h // 32, w // 32)], x.device)
+    deform_inputs2 = [reference_points, spatial_shapes, level_start_index]
 
     return deform_inputs1, deform_inputs2
 
@@ -163,7 +137,7 @@ class Injector(nn.Module):
                                  n_points=n_points, ratio=deform_ratio)
         self.gamma = nn.Parameter(init_values * torch.ones((dim)), requires_grad=True)
 
-    def forward(self, query, reference_points, feat, spatial_shapes, level_start_index):        
+    def forward(self, query, reference_points, feat, spatial_shapes, level_start_index):
         def _inner_forward(query, feat):
 
             attn = self.attn(self.query_norm(query), reference_points,

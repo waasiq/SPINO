@@ -54,10 +54,10 @@ class BoundaryFineTuner(FineTuner):
     def __init__(self, dinov2_vit_model: str, mode: str = 'direct',
                  upsample_factor: Optional[float] = None, head: str = 'mlp',
                  neighbor_radius: float = 1.5, threshold_boundary: float = 0.95,
-                 num_boundary_neighbors: int = 1,
+                 num_boundary_neighbors: int = 1, use_vitadapter: bool = False,
                  test_output_size: Optional[Tuple[int, int]] = None,
                  test_multi_scales: Optional[List[int]] = None,
-                 test_plot: bool = False, use_vitadapter: bool = False,):
+                 test_plot: bool = False):
         super().__init__(dinov2_vit_model=dinov2_vit_model, blocks=None,
                          upsample_factor=upsample_factor)
         assert mode in ['affinity', 'direct']
@@ -70,7 +70,7 @@ class BoundaryFineTuner(FineTuner):
         self.test_plot = test_plot
         self.use_vitadapter = use_vitadapter
         if self.use_vitadapter:
-            self.vit_adapter = ViTAdapter(dinov2_vit_model=dinov2_vit_model)
+            self.vit_adapter = ViTAdapter()
         else:
             self.vit_adapter = None
 
@@ -88,15 +88,20 @@ class BoundaryFineTuner(FineTuner):
             else:
                 raise NotImplementedError
         elif self.mode == 'direct':
+            if self.use_vitadapter:
+                feat_dim = 4 * self.feat_dim
+            else:
+                feat_dim = self.feat_dim
+                
             if head == 'linear':
-                self.head = nn.Conv2d(self.feat_dim, 1, kernel_size=1, stride=1, padding=0)
+                self.head = nn.Conv2d(feat_dim, 1, kernel_size=1, stride=1, padding=0)
             elif head == 'knn':
                 self.head = KNeighborsClassifier(n_neighbors=5, leaf_size=10)
                 self.knn_X = []
                 self.knn_y = []
             elif head == 'cnn':
                 self.head = nn.Sequential(
-                    nn.Conv2d(self.feat_dim, 600, kernel_size=3, stride=1, padding=1),
+                    nn.Conv2d(feat_dim, 600, kernel_size=3, stride=1, padding=1),
                     nn.ReLU(),
                     nn.Conv2d(600, 600, kernel_size=3, stride=1, padding=1),
                     nn.ReLU(),
@@ -104,9 +109,9 @@ class BoundaryFineTuner(FineTuner):
                     nn.ReLU(),
                     nn.Conv2d(400, 1, kernel_size=3, stride=1, padding=1),
                 )
-            elif head == 'mlp':
+            elif head == 'mlp': 
                 self.head = nn.Sequential(
-                    nn.Conv2d(4 * self.feat_dim, 600, kernel_size=1, stride=1, padding=0),
+                    nn.Conv2d(feat_dim, 600, kernel_size=1, stride=1, padding=0),
                     nn.ReLU(),
                     nn.Conv2d(600, 600, kernel_size=1, stride=1, padding=0),
                     nn.ReLU(),
@@ -171,9 +176,9 @@ class BoundaryFineTuner(FineTuner):
             f4_upsampled = F.interpolate(f4, size=(h_f1, w_f1), mode='bilinear', align_corners=False)
 
             x = torch.cat([f1, f2_upsampled, f3_upsampled, f4_upsampled], dim=1)
-            #print(f"Shape of x after concatenation: {x.shape}")
         else:
-            x = self.forward_encoder(img)
+            x = self.forward_encoder(img) # (B, feat_dim, H, W)
+
         if self.mode == 'affinity':
             batch_size = x.shape[0]
             h = x.shape[2]
@@ -195,7 +200,7 @@ class BoundaryFineTuner(FineTuner):
             x = torch.cat((x1, x2), dim=1)  # (B*I, 2*feat_dim)
             x = x.view(batch_size, -1, 2 * self.feat_dim)  # (B, I, 2*feat_dim)
             x = self.head(x)  # (B, I, 1)
-            #x = torch.sigmoid(x)  # (B, I, 1)
+            x = torch.sigmoid(x)  # (B, I, 1)
         elif self.mode == 'direct':
             if isinstance(self.head, KNeighborsClassifier):
                 if self.training:
@@ -424,8 +429,7 @@ class BoundaryFineTunerCLI(LightningCLI):
         )
 
     def add_arguments_to_parser(self, parser):
-        # Dataset
-        parser.add_argument('--data_params', type=Dict[str,Any])
+        parser.add_argument('--data_params', type=Dict[str, Any])
 
 
 if __name__ == '__main__':

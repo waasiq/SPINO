@@ -15,7 +15,7 @@ trainer:
         every_n_epochs: 10
 
 model:
-  dinov2_vit_model: "vits14"
+  dinov2_vit_model: "vitb14"
   num_classes: ${data.init_args.num_classes}
   train_output_size: ${data_params.image_size_input}
   upsample_factor: 14.0
@@ -25,7 +25,6 @@ model:
   test_output_size: ${data_params.image_size_original}
   test_multi_scales: [1, 2, 3]
   test_plot: False
-  use_checkpoint: true
   use_vitadapter: true
 
 data:
@@ -74,7 +73,7 @@ data:
 
 data_params:
   image_size_original: [1024, 2048]
-  image_size_input: [504, 1008]
+  image_size_input: [448, 896] #[504, 1008]
   image_mean: [0.485, 0.456, 0.406]
   image_std: [0.229, 0.224, 0.225]
 
@@ -83,9 +82,9 @@ ckpt_path: null
 optimizer:
   class_path: torch.optim.Adam
   init_args:
-    lr: 0.001
+    lr: 0.0001
 
 lr_scheduler:
-  class_path: torch.optim.lr_scheduler.CosineAnnealingLR
+  class_path: torch.optim.lr_scheduler.StepLR
   init_args:
-    T_max: ${trainer.max_epochs}
+    step_size: 500

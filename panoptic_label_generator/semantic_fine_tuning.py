@@ -27,7 +27,6 @@ warnings.filterwarnings('ignore', '.*Only one label was provided to `remove_smal
 
 class SemanticFineTuner(FineTuner):
     """Fine-tunes a small head on top of the DINOv2 model for semantic segmentation.
-
     Parameters
     ----------
     dinov2_vit_model : str
@@ -54,10 +53,6 @@ class SemanticFineTuner(FineTuner):
         Whether to plot the predictions during testing.
     test_save_dir : str
         Directory to save the predictions during testing.
-    use_vitadapter : bool
-        Whether to use ViTAdapter for feature extraction.
-    use_checkpoint : bool
-        Whether to use gradient checkpointing to save memory.
     """
 
     def __init__(self, dinov2_vit_model: str, num_classes: int, train_output_size: Tuple[int, int],
@@ -65,9 +60,8 @@ class SemanticFineTuner(FineTuner):
                  head: str = 'mlp',
                  ignore_index: int = -100, top_k_percent_pixels: float = 1.0,
                  test_output_size: Optional[Tuple[int, int]] = None,
-                 test_multi_scales: Optional[List[int]] = None,
-                 test_plot: bool = False, test_save_dir: Optional[str] = None,
-                 use_vitadapter: bool = False, use_checkpoint: bool = False):
+                 test_multi_scales: Optional[List[int]] = None, use_vitadapter: bool = False,
+                 test_plot: bool = False, test_save_dir: Optional[str] = None):
         super().__init__(dinov2_vit_model=dinov2_vit_model, blocks=blocks,
                          upsample_factor=upsample_factor)
         self.num_classes = num_classes
@@ -79,14 +73,14 @@ class SemanticFineTuner(FineTuner):
         self.test_plot = test_plot
         self.test_save_dir = test_save_dir
         self.use_vitadapter = use_vitadapter
-        self.use_checkpoint = use_checkpoint
 
         if self.use_vitadapter:
-            self.vit_adapter = ViTAdapter(dinov2_vit_model=dinov2_vit_model)
+            self.vit_adapter = ViTAdapter()
+            head_input_dim = 4 * (self.feat_dim * self.num_blocks)
         else:
             self.vit_adapter = None
+            head_input_dim = self.feat_dim * self.num_blocks
 
-        head_input_dim = 4 * (self.feat_dim * self.num_blocks)
         if head == 'linear':
             self.head = nn.Conv2d(head_input_dim, num_classes, kernel_size=1, stride=1, padding=0)
         elif head == 'knn':
@@ -131,9 +125,9 @@ class SemanticFineTuner(FineTuner):
 
             # Concatenate the features along the channel dimension
             x = torch.cat([f1, f2_upsampled, f3_upsampled, f4_upsampled], dim=1)
-        else:
+        else: 
             x = self.forward_encoder(x)  # (B, feat_dim, H, W)
-        
+
         if isinstance(self.head, KNeighborsClassifier):
             if self.training:
                 return x  # return only features during training
@@ -303,7 +297,6 @@ class SemanticFineTuner(FineTuner):
 
 
 class SemanticFineTunerCLI(LightningCLI):
-
     def __init__(self):
         super().__init__(
             model_class=SemanticFineTuner,
@@ -311,9 +304,7 @@ class SemanticFineTunerCLI(LightningCLI):
             parser_kwargs={'parser_mode': 'omegaconf'},
             save_config_callback=None,
         )
-
     def add_arguments_to_parser(self, parser):
-        # Dataset
         parser.add_argument('--data_params', type=Dict[str, Any])
 
 
