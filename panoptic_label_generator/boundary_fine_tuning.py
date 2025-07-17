@@ -179,6 +179,7 @@ class BoundaryFineTuner(FineTuner):
     def forward(self, img: torch.Tensor, connected_indices: np.array = None,
                 segment_mask=None) -> torch.Tensor:
         if self.use_vitadapter:
+            print("Using ViTAdapter for DINOv2 model.")
             f1, f2, f3, f4 = self.vit_adapter.forward(img)
             _, _, h_f1, w_f1 = f1.shape
 
@@ -190,6 +191,7 @@ class BoundaryFineTuner(FineTuner):
 
             x = torch.cat([f1, f2_upsampled, f3_upsampled, f4_upsampled], dim=1)
         else:
+            print("Using DINOv2 model without ViTAdapter.")
             x = self.forward_encoder(img) # (B, feat_dim, H, W)
 
         if self.mode == 'affinity':

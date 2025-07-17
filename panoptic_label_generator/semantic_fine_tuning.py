@@ -112,6 +112,7 @@ class SemanticFineTuner(FineTuner):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.use_vitadapter:
+            print("Using ViTAdapter for DINOv2 model.")
             # Get the list of multi-scale features
             f1, f2, f3, f4 = self.vit_adapter.forward(x)
 
@@ -126,6 +127,7 @@ class SemanticFineTuner(FineTuner):
             # Concatenate the features along the channel dimension
             x = torch.cat([f1, f2_upsampled, f3_upsampled, f4_upsampled], dim=1)
         else: 
+            print("Using DINOv2 model without ViTAdapter.")
             x = self.forward_encoder(x)  # (B, feat_dim, H, W)
 
         if isinstance(self.head, KNeighborsClassifier):

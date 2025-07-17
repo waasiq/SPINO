@@ -17,7 +17,7 @@ trainer:
 model:
   dinov2_vit_model: "vitb14"
   mode: "direct"
-  upsample_factor: 4.0
+  upsample_factor: 3.5
   head: "mlp"
   neighbor_radius: 1.5
   threshold_boundary: 0.93
@@ -79,18 +79,19 @@ data_params:
 
 ckpt_path: null
 
+# Lr for vit adapter was set to 0.0001 and 0.001
 optimizer:
   class_path: torch.optim.Adam
   init_args:
-    lr: 0.001 # Lr for vit adapter was set to 0.0001
+    lr: 0.0001 
 
-lr_scheduler:
-  class_path: torch.optim.lr_scheduler.CosineAnnealingLR
-  init_args:
-    T_max: ${trainer.max_epochs}
+# lr_scheduler:
+#   class_path: torch.optim.lr_scheduler.CosineAnnealingLR
+#   init_args:
+#     T_max: ${trainer.max_epochs}
 
 # This lr_scheduler is for vit-adapter. 
-# lr_scheduler:
-#   class_path: torch.optim.lr_scheduler.StepLR
-#   init_args:
-#     step_size: 500
+lr_scheduler:
+  class_path: torch.optim.lr_scheduler.StepLR
+  init_args:
+    step_size: 500
