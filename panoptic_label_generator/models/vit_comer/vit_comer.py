@@ -8,7 +8,7 @@ from external.ms_deformable_attention.modules.deform_attn import MSDeformAttn
 from timm.models.layers import trunc_normal_
 from torch.nn.init import normal_
 
-from models.dino_transformer import DinoVisionTransformer as TIMMVisionTransformer
+from models.dino_transformer import DinoVisionTransformer
 
 from .comer_modules import CNN, CTIBlock, deform_inputs
 
@@ -17,7 +17,7 @@ _logger = logging.getLogger(__name__)
 #! Params for the vit-small: embed_dim = 384
 #! Params for the vit-base: embed_dim = 768
 
-class ViTCoMer(TIMMVisionTransformer):
+class ViTCoMer(DinoVisionTransformer):
     def __init__(self, pretrain_size=518, embed_dim=768, num_heads=6, conv_inplane=64, n_points=4, deform_num_heads=6,
                  init_values=0., interaction_indexes=[[0, 2], [3, 5], [6, 8], [9, 11]], with_cffn=True, cffn_ratio=0.25,
                  deform_ratio=1.0, add_vit_feature=False, use_extra_CTI=True, pretrained=None,with_cp=False,
@@ -69,6 +69,9 @@ class ViTCoMer(TIMMVisionTransformer):
         self.apply(self._init_deform_weights)
         normal_(self.level_embed)
 
+    def init_weights(self) -> None:
+        pass
+
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
             trunc_normal_(m.weight, std=.02)
@@ -109,10 +112,17 @@ class ViTCoMer(TIMMVisionTransformer):
         c2, c3, c4 = self._add_level_embed(c2, c3, c4)
         c = torch.cat([c2, c3, c4], dim=1)
 
+        _, _, h, w = x.shape  
+
         # Patch Embedding forward
-        x, H, W = self.patch_embed(x)
+        x = self.patch_embed(x)
+        W_vit = w // self.patch_size 
+        H_vit = h // self.patch_size 
+        W_adapter = w // 16 
+        H_adapter = h // 16 
         bs, n, dim = x.shape
-        pos_embed = self._get_pos_embed(self.pos_embed[:, 1:], H, W)
+
+        pos_embed = self._get_pos_embed(self.pos_embed[:, 1:], H_vit, W_vit)
         x = self.pos_drop(x + pos_embed)
 
         # Interaction
@@ -128,9 +138,9 @@ class ViTCoMer(TIMMVisionTransformer):
         c3 = c[:, c2.size(1):c2.size(1) + c3.size(1), :]
         c4 = c[:, c2.size(1) + c3.size(1):, :]
 
-        c2 = c2.transpose(1, 2).view(bs, dim, H * 2, W * 2).contiguous()
-        c3 = c3.transpose(1, 2).view(bs, dim, H, W).contiguous()
-        c4 = c4.transpose(1, 2).view(bs, dim, H // 2, W // 2).contiguous()
+        c2 = c2.transpose(1, 2).view(bs, dim, H_adapter * 2, W_adapter * 2).contiguous()
+        c3 = c3.transpose(1, 2).view(bs, dim, H_adapter, W_adapter).contiguous()
+        c4 = c4.transpose(1, 2).view(bs, dim, H_adapter // 2, W_adapter // 2).contiguous()
         c1 = self.up(c2) + c1
 
         if self.add_vit_feature:

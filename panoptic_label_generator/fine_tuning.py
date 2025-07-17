@@ -9,7 +9,7 @@ from models.dino_v2 import (
     dinov2_vits14,
 )
 from torch import nn
-
+import torch.nn.functional as F
 from models.vit_adapter.vit_adapter import ViTAdapter
 from models.vit_comer.vit_comer import ViTCoMer
 
@@ -32,7 +32,7 @@ class FineTuner(pl.LightningModule):
         elif self.use_vitcomer:
             self.encoder = ViTCoMer()
             print(f'[ENCODER] Using encoder: ViTCoMeR')
-        if dinov2_vit_model == 'vits14':
+        elif dinov2_vit_model == 'vits14':
             self.encoder = dinov2_vits14(pretrained=True)
             print(f'[ENCODER] Using encoder: ViT-S14')
         elif dinov2_vit_model == 'vitb14':
