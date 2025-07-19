@@ -8,9 +8,10 @@ trainer:
 
 model:
   semantic_model:
-    class_path: semantic_fine_tuning.SemanticFineTuner
+    class_path: semantic_fine_tuning_eva02.SemanticFineTuner
     init_args:
-      dinov2_vit_model: "vitb14"
+      # dinov2_vit_model: "vitb14"
+      eva02_model: "large_patch14_448"
       num_classes: ${data.init_args.num_classes}
       train_output_size: ${data_params.image_size_input}
       upsample_factor: 14.0
@@ -21,12 +22,13 @@ model:
       test_multi_scales: [ 1, 2 ] # [1, 2, 3] for normal but for vit adapter we use [1, 2]
       test_plot: False
       test_save_dir: null
-      use_vitadapter: True
-  semantic_model_ckpt: "checkpoints/semantic_cityscapes.ckpt"
+      use_vitadapter: False
+  semantic_model_ckpt: "checkpoints/semantic_cityscapes_eva02.ckpt"
   boundary_model:
-    class_path: boundary_fine_tuning.BoundaryFineTuner
+    class_path: boundary_fine_tuning_eva02.BoundaryFineTuner
     init_args:
-      dinov2_vit_model: "vitb14"
+      # dinov2_vit_model: "vitb14"
+      eva02_model: "large_patch14_448"
       mode: "direct"
       upsample_factor: 4.0
       head: "mlp"
@@ -36,9 +38,9 @@ model:
       test_output_size: ${data_params.image_size_original}
       test_multi_scales: [3, 4, 5]
       test_plot: False
-      use_vitadapter: True
+      use_vitadapter: False
       
-  boundary_model_ckpt: "checkpoints/boundary_cityscapes.ckpt"
+  boundary_model_ckpt: "checkpoints/boundary_cityscapes_eva02.ckpt"
   structure_connectivity: [[0, 1, 0], [1, 1, 1], [0, 1, 0]]
   instance_min_pixel: 500
   erosion_structure: [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
@@ -78,6 +80,6 @@ data:
 
 data_params:
   image_size_original: [1024, 2048]
-  image_size_input: [448, 896] #[504, 1008] 
+  image_size_input: [448, 448] #[504, 1008] 
   image_mean: [0.485, 0.456, 0.406]
   image_std: [0.229, 0.224, 0.225]

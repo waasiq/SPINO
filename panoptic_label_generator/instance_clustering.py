@@ -76,8 +76,16 @@ class InstanceCluster(pl.LightningModule):
         self.boundary_model.on_load_checkpoint(boundary_model_ckpt_dict)
 
         # share encoder if the same vit model is used
-        if self.semantic_model.dinov2_vit_model == self.boundary_model.dinov2_vit_model:
+        if hasattr(self.semantic_model, 'dinov2_vit_model') and \
+                hasattr(self.boundary_model, 'dinov2_vit_model') and \
+                self.semantic_model.dinov2_vit_model == self.boundary_model.dinov2_vit_model:
             self.boundary_model.encoder = self.semantic_model.encoder
+        elif hasattr(self.semantic_model, 'eva02_model') and \
+                hasattr(self.boundary_model, 'eva02_model') and \
+                self.semantic_model.eva02_model == self.boundary_model.eva02_model:
+            self.boundary_model.encoder = self.semantic_model.encoder
+        # if self.semantic_model.dinov2_vit_model == self.boundary_model.dinov2_vit_model:
+        #     self.boundary_model.encoder = self.semantic_model.encoder
 
         for param in self.semantic_model.parameters():  # freeze
             param.requires_grad = False

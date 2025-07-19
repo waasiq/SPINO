@@ -138,9 +138,5 @@ dmypy.json
 
 # IDEs
 .idea
-<<<<<<< HEAD
-=======
-
 /results
 /checkpoints
->>>>>>> waasiq-adapter
