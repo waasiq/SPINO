@@ -8,16 +8,27 @@ from models.dino_v2 import (
     dinov2_vitl14,
     dinov2_vits14,
 )
+
+from models.eva02 import (
+    eva02_tiny_patch14_196,
+    eva02_small_patch14_196,
+    eva02_base_patch14_224,
+    eva02_large_patch14_224,
+    eva02_large_patch14_336,
+    eva02_large_patch14_448,
+    EVA02Wrapper
+)
+
 from torch import nn
 import torch.nn.functional as F
 from models.vit_adapter.vit_adapter import ViTAdapter
 from models.vit_comer.vit_comer import ViTCoMer
 
 class FineTuner(pl.LightningModule):
-    def __init__(self, dinov2_vit_model: str, blocks: Optional[List[int]] = None,
+    def __init__(self, model: str, blocks: Optional[List[int]] = None,
                  upsample_factor: Optional[float] = None, use_vitadapter: bool = False, use_vitcomer: bool = False):
         super().__init__()
-        self.dinov2_vit_model = dinov2_vit_model
+        self.model = model
         self.blocks = blocks
         self.upsample_factor = upsample_factor
         self.use_vitadapter = use_vitadapter
@@ -26,27 +37,43 @@ class FineTuner(pl.LightningModule):
         if use_vitadapter and use_vitcomer:
             raise ValueError("Cannot use both ViTAdapter and ViTCoMer at the same time. Choose one.")
 
+        dinov2_models = {
+            'vits14': (dinov2_vits14, 'ViT-S14'),
+            'vitb14': (dinov2_vitb14, 'ViT-B14'),
+            'vitl14': (dinov2_vitl14, 'ViT-L14'),
+            'vitg14': (dinov2_vitg14, 'ViT-G14')
+        }
+
+        eva02_models = {
+            'tiny_patch14_196': (eva02_tiny_patch14_196, 'EVA02-Tiny-14'),
+            'small_patch14_196': (eva02_small_patch14_196, 'EVA02-Small-14'),
+            'base_patch14_224': (eva02_base_patch14_224, 'EVA02-Base-14'),
+            'large_patch14_224': (eva02_large_patch14_224, 'EVA02-Large-14'),
+            'large_patch14_336': (eva02_large_patch14_336, 'EVA02-Large-14-336'),
+            'large_patch14_448': (eva02_large_patch14_448, 'EVA02-Large-14-448')
+        }
+
         if self.use_vitadapter: 
             self.encoder = ViTAdapter()
-            print(f'[ENCODER] Using encoder: ViTAdapter')
+            self.encoder_type = 'custom'
+            print('[ENCODER] Using encoder: ViTAdapter')
         elif self.use_vitcomer:
             self.encoder = ViTCoMer()
-            print(f'[ENCODER] Using encoder: ViTCoMeR')
-        elif dinov2_vit_model == 'vits14':
-            self.encoder = dinov2_vits14(pretrained=True)
-            print(f'[ENCODER] Using encoder: ViT-S14')
-        elif dinov2_vit_model == 'vitb14':
-            self.encoder = dinov2_vitb14(pretrained=True)
-            print(f'[ENCODER] Using encoder: ViT-B14')
-        elif dinov2_vit_model == 'vitl14':
-            self.encoder = dinov2_vitl14(pretrained=True)
-            print(f'[ENCODER] Using encoder: ViT-L14')
-        elif dinov2_vit_model == 'vitg14':
-            self.encoder = dinov2_vitg14(pretrained=True)
-            print(f'[ENCODER] Using encoder: ViT-G14')
+            self.encoder_type = 'custom'
+            print('[ENCODER] Using encoder: ViTCoMeR')
+        elif model in dinov2_models:
+            model_fn, name = dinov2_models[model]
+            self.encoder = model_fn(pretrained=True)
+            self.encoder_type = 'dinov2'
+            print(f'[ENCODER] Using encoder: {name}')
+        elif model in eva02_models:
+            model_fn, name = eva02_models[model]
+            base_model = model_fn(pretrained=True)
+            self.encoder = EVA02Wrapper(base_model)
+            self.encoder_type = 'eva02'
+            print(f'[ENCODER] Using encoder: {name}')
         else:
             raise ValueError(f'Unknown model {dinov2_vit_model}')
-
 
         # Freeze the encoder if not using adapter or comer
         if self.use_vitadapter == False and self.use_vitcomer == False:
@@ -69,7 +96,7 @@ class FineTuner(pl.LightningModule):
         return_attention_features = any([(feature_key in x) for x in ['q', 'k', 'v', 'attn']])
 
         # Logic for ViTAdapter and ViTCoMer
-        if self.use_vitadapter or self.use_vitcomer:
+        if self.encoder_type == 'custom':
             f1, f2, f3, f4 = self.encoder.forward(img)
             _, _, h_f1, w_f1 = f1.shape
 
@@ -82,31 +109,54 @@ class FineTuner(pl.LightningModule):
             x = torch.cat([f1, f2_upsampled, f3_upsampled, f4_upsampled], dim=1)
             return x
     
-        # Default behavior for other models
+        elif self.encoder_type == 'dinov2':
+            with torch.no_grad():
+                block_outputs = self.encoder.forward_features(
+                    img,
+                    return_attention_features=return_attention_features,
+                    return_blocks=self.blocks)
+                if self.blocks is None:
+                    block_outputs = [block_outputs]
+                outs = []
+                for x in block_outputs:
+                    x = x[feature_key]
+                    if feature_key == 'attn':
+                        return x
+                    if feature_key in ['q', 'k', 'v']:
+                        # (B, Patches+1, num_heads, feat_dim // num_heads)
+                        x = x.permute((0, 2, 1, 3)).contiguous()
+                        x = x.reshape((x.shape[0], -1, self.feat_dim))  # (B, Patches+1, feat_dim)
+                    outs.append(x)
+        elif self.encoder_type == 'eva02':
+            with torch.no_grad():
+                if return_attention_features:
+                    raise NotImplementedError("EVA02 doesn't support attention feature extraction")
+                
+                # Get features from EVA02
+                block_outputs = self.encoder.forward_features(img)
+                if self.blocks is None:
+                    block_outputs = [block_outputs]
+                else:
+                    # For EVA02, we only get one feature output, so replicate for blocks
+                    block_outputs = [block_outputs] * len(self.blocks)
+                
+                outs = []
+                for x in block_outputs:
+                    x = x[feature_key]  # Should be token features [B, H*W+1, C]
+                    # EVA02 doesn't have attention weights, so skip attention-related features
+                    if feature_key == 'attn':
+                        raise NotImplementedError("EVA02 doesn't support attention weight extraction")
+                    if feature_key in ['q', 'k', 'v']:
+                        raise NotImplementedError("EVA02 doesn't support q/k/v feature extraction")
+                    outs.append(x)
+            
         with torch.no_grad():
-            block_outputs = self.encoder.forward_features(
-                img,
-                return_attention_features=return_attention_features,
-                return_blocks=self.blocks)
-            if self.blocks is None:
-                block_outputs = [block_outputs]
-            outs = []
-            for x in block_outputs:
-                x = x[feature_key]
-                if feature_key == 'attn':
-                    return x  # (B, num_heads, Patches+1, Patches+1)
-                if feature_key in ['q', 'k', 'v']:
-                    # (B, Patches+1, num_heads, feat_dim // num_heads)
-                    x = x.permute((0, 2, 1, 3)).contiguous()
-                    x = x.reshape((x.shape[0], -1, self.feat_dim))  # (B, Patches+1, feat_dim)
-                outs.append(x)
             x = torch.cat(outs, dim=2)  # (B, Patches+1, feat_dim * self.num_blocks)
-
             x = x[:, 1:, :]  # (B, Patches, feat_dim)
             x = x.permute((0, 2, 1)).contiguous()  # (B, feat_dim, H*W)
             x = x.reshape((x.shape[0], self.feat_dim * self.num_blocks, patches_h,
-                           patches_w))  # (B, feat_dim, H, W)
+                            patches_w))  # (B, feat_dim, H, W)
             if self.upsample_factor is not None:
                 x = nn.functional.interpolate(x, scale_factor=self.upsample_factor, mode='bilinear',
-                                              align_corners=False)  # (B, feat_dim, H, W)
+                                                align_corners=False)  # (B, feat_dim, H, W)
         return x

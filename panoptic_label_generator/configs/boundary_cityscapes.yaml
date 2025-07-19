@@ -11,12 +11,13 @@ trainer:
     - class_path: pytorch_lightning.callbacks.model_checkpoint.ModelCheckpoint
       init_args:
         dirpath: "checkpoints/"
-        filename: "boundary_cityscapes_02"
+        filename: "boundary_cityscapes"
         every_n_epochs: 10
 
 model:
   # dinov2_vit_model: "vitb14"
-  eva02_model: "large_patch14_448"
+  #eva02_model: "large_patch14_448"
+  model: "large_patch14_448"
   mode: "direct"
   upsample_factor: 3.5
   head: "mlp"
@@ -75,17 +76,17 @@ data:
 
 data_params:
   image_size_original: [1024, 2048]
-  image_size_input: [448, 448]
+  image_size_input: [448, 896]
   image_mean: [0.485, 0.456, 0.406]
   image_std: [0.229, 0.224, 0.225]
 
 ckpt_path: null
 
-# Lr for vit adapter and comer was set to 0.0001 and 0.001
+# Lr for vit adapter and comer was set to 0.0001 and 0.001 for the normal one.
 optimizer:
   class_path: torch.optim.Adam
   init_args:
-    lr: 0.0001 
+    lr: 0.001 
 
 lr_scheduler:
   class_path: torch.optim.lr_scheduler.CosineAnnealingLR
