@@ -23,13 +23,29 @@ class ViTCoMer(DinoVisionTransformer):
                  deform_ratio=1.0, add_vit_feature=False, use_extra_CTI=True, pretrained=None,with_cp=False,
                  use_CTI_toV=True, use_CTI_toC=True, cnn_feature_interaction=True, dim_ratio=6.0,
                  *args, **kwargs):
+        kwargs['patch_size'] = 14  # DINOv2 uses patch_size=14
         
         super().__init__( *args, **kwargs)
+
+        self.patch_size = 14  # Explicitly set for clarity
+        self.grid_size = None  # Will be set dynamically
 
         #! Change this to dynamic loading later on
         url = 'https://dl.fbaipublicfiles.com/dinov2/dinov2_vitb14/dinov2_vitb14_pretrain.pth'
         state_dict = torch.hub.load_state_dict_from_url(url, map_location="cpu")
         self.load_state_dict(state_dict, strict=True)
+
+        # Calculate actual pretrain size from position embeddings
+        num_pos_patches = self.pos_embed.shape[1] - 1  # Subtract 1 for cls token
+        grid_size = int(math.sqrt(num_pos_patches))
+        actual_pretrain_size = grid_size * 14  # DINOv2 uses patch_size=14
+        
+        print(f"Detected pretrain size: {actual_pretrain_size}x{actual_pretrain_size}")
+        self.pretrain_size = (actual_pretrain_size, actual_pretrain_size)
+
+        # Freeze vit 
+        for param in self.parameters():
+            param.requires_grad = False
         
         # self.num_classes = 80
         self.cls_token = None
@@ -42,7 +58,6 @@ class ViTCoMer(DinoVisionTransformer):
         embed_dim = self.embed_dim
         self.patch_size = kwargs.get("patch_size", 16)
         self.num_features = embed_dim
-        
         self.level_embed = nn.Parameter(torch.zeros(3, embed_dim))
         self.spm = CNN(inplanes=conv_inplane, embed_dim=embed_dim)
         self.interactions = nn.Sequential(*[
@@ -88,11 +103,25 @@ class ViTCoMer(DinoVisionTransformer):
                 m.bias.data.zero_()
 
     def _get_pos_embed(self, pos_embed, H, W):
-        pos_embed = pos_embed.reshape(
-            1, self.pretrain_size[0] // 16, self.pretrain_size[1] // 16, -1).permute(0, 3, 1, 2)
-        pos_embed = F.interpolate(pos_embed, size=(H, W), mode='bicubic', align_corners=False).\
-            reshape(1, -1, H * W).permute(0, 2, 1)
+        # Get the actual number of position embeddings from the tensor
+        num_pos_embeds = pos_embed.shape[1]  # Should be 1369 for DINOv2
+        orig_size = int(math.sqrt(num_pos_embeds))
+        
+        # Verify it's a perfect square
+        if orig_size * orig_size != num_pos_embeds:
+            raise ValueError(f"Position embedding has {num_pos_embeds} patches, not a perfect square")
+        
+        # Reshape from flat to 2D grid
+        pos_embed = pos_embed.reshape(1, orig_size, orig_size, -1).permute(0, 3, 1, 2)
+        
+        # Interpolate to match the actual H, W dimensions (can be rectangular)
+        pos_embed = F.interpolate(pos_embed, size=(H, W), mode='bicubic', align_corners=False)
+        
+        # Flatten back to sequence format
+        pos_embed = pos_embed.reshape(1, -1, H * W).permute(0, 2, 1)
         return pos_embed
+
+
 
     def _init_deform_weights(self, m):
         if isinstance(m, MSDeformAttn):
@@ -105,54 +134,112 @@ class ViTCoMer(DinoVisionTransformer):
         return c2, c3, c4
 
     def forward(self, x):
-        deform_inputs1, deform_inputs2 = deform_inputs(x)
+        # Debug information
+        print(f"Input image shape: {x.shape}")  # Should be [B, 3, H, W]
+        original_x = x
+        
+        # Before CNN operations
+        print(f"Before deform_inputs: {original_x.shape}")
+        deform_inputs1, deform_inputs2 = deform_inputs(original_x)
         
         # SPM forward
-        c1, c2, c3, c4 = self.spm(x)
+        print(f"Before SPM: {original_x.shape}")
+        c1, c2, c3, c4 = self.spm(original_x)
+        print(f"After SPM - c1: {c1.shape}, c2: {c2.shape}, c3: {c3.shape}, c4: {c4.shape}")
+        
         c2, c3, c4 = self._add_level_embed(c2, c3, c4)
         c = torch.cat([c2, c3, c4], dim=1)
+        print(f"Concatenated CNN features shape: {c.shape}")
 
-        _, _, h, w = x.shape  
+        _, _, h, w = original_x.shape  # Use original_x, not x
 
-        # Patch Embedding forward
-        x = self.patch_embed(x)
+        # ViT pathway - patch embed the original image
+        print(f"Before patch embedding: {original_x.shape}")
+        vit_features = self.patch_embed(original_x)  # Now shape: [batch_size, 2048, 768]
+        print(f"After patch embedding: {vit_features.shape}")
+        
+        # FIX: Use vit_features.shape instead of x.shape
+        bs, n, dim = vit_features.shape
+        print(f"Extracted dimensions - bs: {bs}, n: {n}, dim: {dim}")
+
+        # Calculate actual grid dimensions from the patch embedding output
         W_vit = w // self.patch_size 
         H_vit = h // self.patch_size 
+        print(f"Grid dimensions - H_vit: {H_vit}, W_vit: {W_vit}")
+        
+        # Store for consistent use across modules
+        self.grid_size = (H_vit, W_vit)
+
+        # Debug: verify the calculation
+        expected_patches = H_vit * W_vit
+        actual_patches = n
+        print(f"Patch verification - expected: {expected_patches}, actual: {actual_patches}")
+        assert expected_patches == actual_patches, f"Patch count mismatch: expected {expected_patches}, got {actual_patches}"
+
         W_adapter = w // 16 
         H_adapter = h // 16 
-        bs, n, dim = x.shape
+        print(f"Adapter dimensions - H_adapter: {H_adapter}, W_adapter: {W_adapter}")
 
+        # FIX: Calculate pos_embed BEFORE using it
         pos_embed = self._get_pos_embed(self.pos_embed[:, 1:], H_vit, W_vit)
-        x = self.pos_drop(x + pos_embed)
+        print(f"Position embed shape: {pos_embed.shape}")
+
+        # FIX: Add pos_embed to vit_features, not undefined variable
+        vit_features = vit_features + pos_embed
+        print(f"After adding position embedding: {vit_features.shape}")
+
+        # REMOVE: This duplicate SPM call is unnecessary
+        # c1, c2, c3, c4 = self.spm(x)
 
         # Interaction
         outs = list()
+        print(f"Starting interaction loops...")
         for i, layer in enumerate(self.interactions):
+            print(f"Interaction {i} - Input vit_features: {vit_features.shape}, c: {c.shape}")
             indexes = self.interaction_indexes[i]
-            x, c = layer(x, c, self.blocks[indexes[0]:indexes[-1] + 1],
-                         deform_inputs1, deform_inputs2, H, W)
-            outs.append(x.transpose(1, 2).view(bs, dim, H, W).contiguous())
+            vit_features, c = layer(vit_features, c, self.blocks[indexes[0]:indexes[-1] + 1],
+                                deform_inputs1, deform_inputs2, H_adapter, W_adapter)
+            print(f"Interaction {i} - Output vit_features: {vit_features.shape}, c: {c.shape}")
+            outs.append(vit_features.transpose(1, 2).view(bs, dim, H_adapter, W_adapter).contiguous())
         
-        # Split & Reshape
-        c2 = c[:, 0:c2.size(1), :]
-        c3 = c[:, c2.size(1):c2.size(1) + c3.size(1), :]
-        c4 = c[:, c2.size(1) + c3.size(1):, :]
+        print(f"Completed interactions. Number of outputs: {len(outs)}")
 
-        c2 = c2.transpose(1, 2).view(bs, dim, H_adapter * 2, W_adapter * 2).contiguous()
-        c3 = c3.transpose(1, 2).view(bs, dim, H_adapter, W_adapter).contiguous()
-        c4 = c4.transpose(1, 2).view(bs, dim, H_adapter // 2, W_adapter // 2).contiguous()
-        c1 = self.up(c2) + c1
+        # Split & Reshape
+        print(f"Before splitting - c: {c.shape}")
+        c2_new = c[:, 0:c2.size(1), :]
+        c3_new = c[:, c2.size(1):c2.size(1) + c3.size(1), :]
+        c4_new = c[:, c2.size(1) + c3.size(1):, :]
+        print(f"After splitting - c2: {c2_new.shape}, c3: {c3_new.shape}, c4: {c4_new.shape}")
+
+        c2_new = c2_new.transpose(1, 2).view(bs, dim, H_adapter * 2, W_adapter * 2).contiguous()
+        c3_new = c3_new.transpose(1, 2).view(bs, dim, H_adapter, W_adapter).contiguous()
+        c4_new = c4_new.transpose(1, 2).view(bs, dim, H_adapter // 2, W_adapter // 2).contiguous()
+        print(f"After reshaping - c2: {c2_new.shape}, c3: {c3_new.shape}, c4: {c4_new.shape}")
+        
+        c1 = self.up(c2_new) + c1
+        print(f"After upsampling and adding - c1: {c1.shape}")
+
+        # Update variables for consistency
+        c2, c3, c4 = c2_new, c3_new, c4_new
 
         if self.add_vit_feature:
+            print("Adding ViT features to CNN features...")
             x1, x2, x3, x4 = outs
+            print(f"ViT outputs before interpolation - x1: {x1.shape}, x2: {x2.shape}, x3: {x3.shape}, x4: {x4.shape}")
+            
             x1 = F.interpolate(x1, scale_factor=4, mode='bilinear', align_corners=False)
             x2 = F.interpolate(x2, scale_factor=2, mode='bilinear', align_corners=False)
             x4 = F.interpolate(x4, scale_factor=0.5, mode='bilinear', align_corners=False)
+            print(f"ViT outputs after interpolation - x1: {x1.shape}, x2: {x2.shape}, x3: {x3.shape}, x4: {x4.shape}")
+            
             c1, c2, c3, c4 = c1 + x1, c2 + x2, c3 + x3, c4 + x4
+            print(f"Final combined features - c1: {c1.shape}, c2: {c2.shape}, c3: {c3.shape}, c4: {c4.shape}")
 
         # Final Norm
         f1 = self.norm1(c1)
         f2 = self.norm2(c2)
         f3 = self.norm3(c3)
         f4 = self.norm4(c4)
+        print(f"After normalization - f1: {f1.shape}, f2: {f2.shape}, f3: {f3.shape}, f4: {f4.shape}")
+        
         return [f1, f2, f3, f4]

@@ -6,6 +6,7 @@ import torch.nn as nn
 from external.ms_deformable_attention.modules.deform_attn import MSDeformAttn
 from timm.models.layers import DropPath
 import torch.utils.checkpoint as cp
+import math
 
 _logger = logging.getLogger(__name__)
 
@@ -403,32 +404,55 @@ class CTIBlock(nn.Module):
 
         self.mrfp = MRFP(dim, hidden_features=int(dim * dim_ratio))
 
-    
     def forward(self, x, c, blocks, deform_inputs1, deform_inputs2, H, W):
         B, N, C = x.shape
         deform_inputs = deform_inputs_only_one(x, H*16, W*16)
+        
         if self.use_CTI_toV:
             c = self.mrfp(c, H, W)
             c_select1, c_select2, c_select3 = c[:,:H*W*4, :], c[:, H*W*4:H*W*4+H*W, :], c[:, H*W*4+H*W:, :]
+            
+            # DEBUG: Check dimensions before concatenation
+            print(f"Before concat - x: {x.shape}, c_select2: {c_select2.shape}")
+            
+            # FIX: Handle dimension mismatch between c_select2 and x
+            spatial_shapes_updated = False
+            if c_select2.shape[1] != x.shape[1]:
+                print(f"Dimension mismatch: c_select2={c_select2.shape[1]}, x={x.shape[1]}. Interpolating...")
+                
+                # Reshape c_select2 to spatial format for interpolation
+                c2_spatial = c_select2.transpose(1, 2).view(B, C, H, W)
+                
+                # Calculate target dimensions from x
+                target_patches = x.shape[1]
+                target_h = int(math.sqrt(target_patches * (H/W)))  # Maintain aspect ratio
+                target_w = target_patches // target_h
+                
+                # Interpolate to match x dimensions
+                c2_resized = F.interpolate(c2_spatial, size=(target_h, target_w), mode='bilinear', align_corners=False)
+                c_select2 = c2_resized.view(B, C, -1).transpose(1, 2)
+                
+                print(f"After interpolation - c_select2: {c_select2.shape}")
+            
             c = torch.cat([c_select1, c_select2 + x, c_select3], dim=1)
 
             x = self.cti_tov(query=x, reference_points=deform_inputs[0],
-                          feat=c, spatial_shapes=deform_inputs[1],
-                          level_start_index=deform_inputs[2], H=H, W=W)
+                        feat=c, spatial_shapes=deform_inputs[1],
+                        level_start_index=deform_inputs[2], H=H, W=W)
 
         for idx, blk in enumerate(blocks):
             x = blk(x, H, W)
 
         if self.use_CTI_toC:
             c = self.cti_toc(query=c, reference_points=deform_inputs2[0],
-                           feat=x, spatial_shapes=deform_inputs2[1],
-                           level_start_index=deform_inputs2[2], H=H, W=W)
-                           
+                        feat=x, spatial_shapes=deform_inputs2[1],
+                        level_start_index=deform_inputs2[2], H=H, W=W)
+                        
         if self.extra_CTIs is not None:
             for cti in self.extra_CTIs:
                 c = cti(query=c, reference_points=deform_inputs2[0],
-                              feat=x, spatial_shapes=deform_inputs2[1],
-                              level_start_index=deform_inputs2[2], H=H, W=W)
+                            feat=x, spatial_shapes=deform_inputs2[1],
+                            level_start_index=deform_inputs2[2], H=H, W=W)
         return x, c
 
 
