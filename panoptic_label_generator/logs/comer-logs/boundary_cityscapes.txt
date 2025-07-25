@@ -1,135 +1,0 @@
-/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torchvision/io/image.py:11: UserWarning: Failed to load image Python extension: libtorch_cuda_cu.so: cannot open shared object file: No such file or directory
-  warn(f"Failed to load image Python extension: {e}")
-/work/dlclarge2/masoodw-spino100/dl-lab/SPINO/panoptic_label_generator/external/ms_deformable_attention/functions/deform_attn_func.py:21: FutureWarning: `torch.cuda.amp.custom_fwd(args...)` is deprecated. Please use `torch.amp.custom_fwd(args..., device_type='cuda')` instead.
-  @custom_fwd(cast_inputs=torch.float32)
-/work/dlclarge2/masoodw-spino100/dl-lab/SPINO/panoptic_label_generator/external/ms_deformable_attention/functions/deform_attn_func.py:38: FutureWarning: `torch.cuda.amp.custom_bwd(args...)` is deprecated. Please use `torch.amp.custom_bwd(args..., device_type='cuda')` instead.
-  def backward(ctx, grad_output):
-xFormers not available
-xFormers not available
-[rank: 0] Seed set to 0
-/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/lightning_fabric/plugins/environments/slurm.py:204: The `srun` command is available on your system but is not used. HINT: If your intention is to run Lightning on SLURM, prepend your python command with `srun` like so: srun python panoptic_label_generator/boundary_fine_tuning.py fit ...
-GPU available: True (cuda), used: True
-TPU available: False, using: 0 TPU cores
-HPU available: False, using: 0 HPUs
-Initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/1
-----------------------------------------------------------------------------------------------------
-distributed_backend=nccl
-All distributed processes registered. Starting with 1 processes
-----------------------------------------------------------------------------------------------------
-
-[ENCODER] Using encoder: ViTCoMeR
-Collect Cityscapes frames [train]:   0%|          | 0/2975 [00:00<?, ?it/s]Collect Cityscapes frames [train]:   8%|▊         | 233/2975 [00:00<00:01, 2324.78it/s]Collect Cityscapes frames [train]:  16%|█▌        | 468/2975 [00:00<00:01, 2335.18it/s]Collect Cityscapes frames [train]:  24%|██▍       | 708/2975 [00:00<00:00, 2360.35it/s]Collect Cityscapes frames [train]:  32%|███▏      | 948/2975 [00:00<00:00, 2375.54it/s]Collect Cityscapes frames [train]:  40%|███▉      | 1186/2975 [00:00<00:00, 2370.48it/s]Collect Cityscapes frames [train]:  48%|████▊     | 1424/2975 [00:00<00:00, 2347.25it/s]Collect Cityscapes frames [train]:  56%|█████▌    | 1659/2975 [00:00<00:00, 2333.92it/s]Collect Cityscapes frames [train]:  64%|██████▎   | 1896/2975 [00:00<00:00, 2344.48it/s]Collect Cityscapes frames [train]:  72%|███████▏  | 2131/2975 [00:00<00:00, 2338.66it/s]Collect Cityscapes frames [train]:  79%|███████▉  | 2365/2975 [00:01<00:00, 2334.29it/s]Collect Cityscapes frames [train]:  87%|████████▋ | 2603/2975 [00:01<00:00, 2345.75it/s]Collect Cityscapes frames [train]:  95%|█████████▌| 2838/2975 [00:01<00:00, 2344.33it/s]Collect Cityscapes frames [train]: 100%|██████████| 2975/2975 [00:01<00:00, 2346.48it/s]
-LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
-
-  | Name    | Type       | Params | Mode 
------------------------------------------------
-0 | encoder | ViTCoMer   | 140 M  | train
-1 | head    | Sequential | 2.4 M  | train
------------------------------------------------
-143 M     Trainable params
-0         Non-trainable params
-143 M     Total params
-573.729   Total estimated model params size (MB)
-594       Modules in train mode
-0         Modules in eval mode
-/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/trainer/connectors/data_connector.py:424: The 'train_dataloader' does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument` to `num_workers=7` in the `DataLoader` to improve performance.
-Training: |          | 0/? [00:00<?, ?it/s]Training:   0%|          | 0/10 [00:00<?, ?it/s]Epoch 0:   0%|          | 0/10 [00:00<?, ?it/s] /work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torch/functional.py:513: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3609.)
-  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
-[rank0]: Traceback (most recent call last):
-[rank0]:   File "panoptic_label_generator/boundary_fine_tuning.py", line 437, in <module>
-[rank0]:     cli = BoundaryFineTunerCLI()
-[rank0]:   File "panoptic_label_generator/boundary_fine_tuning.py", line 425, in __init__
-[rank0]:     super().__init__(
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/cli.py", line 394, in __init__
-[rank0]:     self._run_subcommand(self.subcommand)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/cli.py", line 701, in _run_subcommand
-[rank0]:     fn(**fn_kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 538, in fit
-[rank0]:     call._call_and_handle_interrupt(
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/trainer/call.py", line 46, in _call_and_handle_interrupt
-[rank0]:     return trainer.strategy.launcher.launch(trainer_fn, *args, trainer=trainer, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/strategies/launchers/subprocess_script.py", line 105, in launch
-[rank0]:     return function(*args, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 574, in _fit_impl
-[rank0]:     self._run(model, ckpt_path=ckpt_path)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 981, in _run
-[rank0]:     results = self._run_stage()
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 1025, in _run_stage
-[rank0]:     self.fit_loop.run()
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/loops/fit_loop.py", line 205, in run
-[rank0]:     self.advance()
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/loops/fit_loop.py", line 363, in advance
-[rank0]:     self.epoch_loop.run(self._data_fetcher)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/loops/training_epoch_loop.py", line 140, in run
-[rank0]:     self.advance(data_fetcher)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/loops/training_epoch_loop.py", line 250, in advance
-[rank0]:     batch_output = self.automatic_optimization.run(trainer.optimizers[0], batch_idx, kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/loops/optimization/automatic.py", line 190, in run
-[rank0]:     self._optimizer_step(batch_idx, closure)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/loops/optimization/automatic.py", line 268, in _optimizer_step
-[rank0]:     call._call_lightning_module_hook(
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/trainer/call.py", line 167, in _call_lightning_module_hook
-[rank0]:     output = fn(*args, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/core/module.py", line 1306, in optimizer_step
-[rank0]:     optimizer.step(closure=optimizer_closure)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/core/optimizer.py", line 153, in step
-[rank0]:     step_output = self._strategy.optimizer_step(self._optimizer, closure, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/strategies/ddp.py", line 270, in optimizer_step
-[rank0]:     optimizer_output = super().optimizer_step(optimizer, closure, model, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/strategies/strategy.py", line 238, in optimizer_step
-[rank0]:     return self.precision_plugin.optimizer_step(optimizer, model=model, closure=closure, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/plugins/precision/precision.py", line 122, in optimizer_step
-[rank0]:     return optimizer.step(closure=closure, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torch/optim/lr_scheduler.py", line 130, in wrapper
-[rank0]:     return func.__get__(opt, opt.__class__)(*args, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torch/optim/optimizer.py", line 484, in wrapper
-[rank0]:     out = func(*args, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torch/optim/optimizer.py", line 89, in _use_grad
-[rank0]:     ret = func(self, *args, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torch/optim/adam.py", line 205, in step
-[rank0]:     loss = closure()
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/plugins/precision/precision.py", line 108, in _wrap_closure
-[rank0]:     closure_result = closure()
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/loops/optimization/automatic.py", line 144, in __call__
-[rank0]:     self._result = self.closure(*args, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torch/utils/_contextlib.py", line 116, in decorate_context
-[rank0]:     return func(*args, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/loops/optimization/automatic.py", line 129, in closure
-[rank0]:     step_output = self._step_fn()
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/loops/optimization/automatic.py", line 317, in _training_step
-[rank0]:     training_step_output = call._call_strategy_hook(trainer, "training_step", *kwargs.values())
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/trainer/call.py", line 319, in _call_strategy_hook
-[rank0]:     output = fn(*args, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/strategies/strategy.py", line 389, in training_step
-[rank0]:     return self._forward_redirection(self.model, self.lightning_module, "training_step", *args, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/strategies/strategy.py", line 640, in __call__
-[rank0]:     wrapper_output = wrapper_module(*args, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
-[rank0]:     return self._call_impl(*args, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
-[rank0]:     return forward_call(*args, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torch/nn/parallel/distributed.py", line 1636, in forward
-[rank0]:     else self._run_ddp_forward(*inputs, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torch/nn/parallel/distributed.py", line 1454, in _run_ddp_forward
-[rank0]:     return self.module(*inputs, **kwargs)  # type: ignore[index]
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
-[rank0]:     return self._call_impl(*args, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
-[rank0]:     return forward_call(*args, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/pytorch_lightning/strategies/strategy.py", line 633, in wrapped_forward
-[rank0]:     out = method(*_args, **_kwargs)
-[rank0]:   File "panoptic_label_generator/boundary_fine_tuning.py", line 271, in training_step
-[rank0]:     pred = self(rgb)  # (B, 1, H, W)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
-[rank0]:     return self._call_impl(*args, **kwargs)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
-[rank0]:     return forward_call(*args, **kwargs)
-[rank0]:   File "panoptic_label_generator/boundary_fine_tuning.py", line 181, in forward
-[rank0]:     x = self.forward_encoder(img) # (B, feat_dim, H, W)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/dl-lab/SPINO/panoptic_label_generator/fine_tuning.py", line 73, in forward_encoder
-[rank0]:     f1, f2, f3, f4 = self.encoder.forward(img)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/dl-lab/SPINO/panoptic_label_generator/models/vit_comer/vit_comer.py", line 125, in forward
-[rank0]:     pos_embed = self._get_pos_embed(self.pos_embed[:, 1:], H_vit, W_vit)
-[rank0]:   File "/work/dlclarge2/masoodw-spino100/dl-lab/SPINO/panoptic_label_generator/models/vit_comer/vit_comer.py", line 91, in _get_pos_embed
-[rank0]:     pos_embed = pos_embed.reshape(
-[rank0]: RuntimeError: shape '[1, 32, 32, -1]' is invalid for input of size 1051392
