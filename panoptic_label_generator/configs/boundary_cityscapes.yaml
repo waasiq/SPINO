@@ -15,7 +15,9 @@ trainer:
         every_n_epochs: 10
 
 model:
-  dinov2_vit_model: "vitb14"
+  # dinov2_vit_model: "vitb14"
+  #eva02_model: "large_patch14_448"
+  model: "large_patch14_448"
   mode: "direct"
   upsample_factor: 4.0
   head: "mlp"
@@ -80,7 +82,7 @@ data_params:
 
 ckpt_path: null
 
-# Lr for vit adapter and comer was set to 0.0001 and 0.001
+# Lr for vit adapter and comer was set to 0.0001 and 0.001 for the normal one.
 optimizer:
   class_path: torch.optim.Adam
   init_args:

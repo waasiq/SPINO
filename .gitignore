@@ -1,9 +1,5 @@
 # Custom
-<<<<<<< HEAD
 checkpoints/*.ckpt
-=======
-
->>>>>>> waasiq-adapter
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -138,9 +134,5 @@ dmypy.json
 
 # IDEs
 .idea
-<<<<<<< HEAD
-=======
-
 /results
 /checkpoints
->>>>>>> waasiq-adapter

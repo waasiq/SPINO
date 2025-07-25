@@ -55,7 +55,7 @@ class SemanticFineTuner(FineTuner):
         Directory to save the predictions during testing.
     """
 
-    def __init__(self, dinov2_vit_model: str, num_classes: int, train_output_size: Tuple[int, int],
+    def __init__(self, model: str, num_classes: int, train_output_size: Tuple[int, int],
                  blocks: Optional[List[int]] = None, upsample_factor: Optional[float] = None,
                  head: str = 'mlp',
                  ignore_index: int = -100, top_k_percent_pixels: float = 1.0,
@@ -64,7 +64,7 @@ class SemanticFineTuner(FineTuner):
                  use_vitadapter: bool = False, use_vitcomer: bool = False,
                  test_plot: bool = False, test_save_dir: Optional[str] = None):
 
-        super().__init__(dinov2_vit_model=dinov2_vit_model, blocks=blocks,
+        super().__init__(model=model, blocks=blocks,
                          upsample_factor=upsample_factor, use_vitadapter=use_vitadapter,
                          use_vitcomer=use_vitcomer)
 

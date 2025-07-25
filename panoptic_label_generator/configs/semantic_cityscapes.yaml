@@ -11,11 +11,13 @@ trainer:
     - class_path: pytorch_lightning.callbacks.model_checkpoint.ModelCheckpoint
       init_args:
         dirpath: "checkpoints/"
-        filename: "semantic_cityscapes"
+        filename: "semantic_cityscapes_eva02"
         every_n_epochs: 10
 
 model:
-  dinov2_vit_model: "vitb14"
+  # dinov2_vit_model: "vitb14"
+  #eva02_model: "large_patch14_448"
+  model: "large_patch14_448"
   num_classes: ${data.init_args.num_classes}
   train_output_size: ${data_params.image_size_input}
   upsample_factor: 14.0
@@ -80,7 +82,7 @@ data_params:
 
 ckpt_path: null
 
-# Lr for vit adapter and comer was set to 0.0001 and 0.001
+# Lr for vit adapter and comer was set to 0.0001 and 0.001 for the normal one.
 optimizer:
   class_path: torch.optim.Adam
   init_args:
