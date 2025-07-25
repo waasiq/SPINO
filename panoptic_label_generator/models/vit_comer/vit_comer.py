@@ -19,7 +19,7 @@ _logger = logging.getLogger(__name__)
 
 class ViTCoMer(DinoVisionTransformer):
     def __init__(self, pretrain_size=518, embed_dim=768, num_heads=6, conv_inplane=64, n_points=4, deform_num_heads=6,
-                 init_values=0., interaction_indexes=[[0, 2], [3, 5], [6, 8], [9, 11]], with_cffn=True, cffn_ratio=0.25,
+                 init_values=0., interaction_indexes=[[0, 2], [3, 5], [6, 8], [9, 11]], with_cffn=False, cffn_ratio=0.25,
                  deform_ratio=1.0, add_vit_feature=False, use_extra_CTI=True, pretrained=None,with_cp=False,
                  use_CTI_toV=True, use_CTI_toC=True, cnn_feature_interaction=True, dim_ratio=6.0,
                  *args, **kwargs):
@@ -40,7 +40,7 @@ class ViTCoMer(DinoVisionTransformer):
         self.use_CTI_toV = use_CTI_toV
         self.add_vit_feature = add_vit_feature
         embed_dim = self.embed_dim
-        self.patch_size = kwargs.get("patch_size", 16)
+        self.patch_size = kwargs.get("patch_size", 14)
         self.num_features = embed_dim
         
         self.level_embed = nn.Parameter(torch.zeros(3, embed_dim))
@@ -89,7 +89,7 @@ class ViTCoMer(DinoVisionTransformer):
 
     def _get_pos_embed(self, pos_embed, H, W):
         pos_embed = pos_embed.reshape(
-            1, self.pretrain_size[0] // 16, self.pretrain_size[1] // 16, -1).permute(0, 3, 1, 2)
+            1, self.pretrain_size[0] // 14, self.pretrain_size[1] // 14, -1).permute(0, 3, 1, 2)
         pos_embed = F.interpolate(pos_embed, size=(H, W), mode='bicubic', align_corners=False).\
             reshape(1, -1, H * W).permute(0, 2, 1)
         return pos_embed
@@ -105,6 +105,7 @@ class ViTCoMer(DinoVisionTransformer):
         return c2, c3, c4
 
     def forward(self, x):
+        print(f"Input shape: {x.shape}")
         deform_inputs1, deform_inputs2 = deform_inputs(x)
         
         # SPM forward
@@ -116,6 +117,7 @@ class ViTCoMer(DinoVisionTransformer):
 
         # Patch Embedding forward
         x = self.patch_embed(x)
+
         W_vit = w // self.patch_size 
         H_vit = h // self.patch_size 
         W_adapter = w // 16 
@@ -123,16 +125,18 @@ class ViTCoMer(DinoVisionTransformer):
         bs, n, dim = x.shape
 
         pos_embed = self._get_pos_embed(self.pos_embed[:, 1:], H_vit, W_vit)
-        x = self.pos_drop(x + pos_embed)
+        print(f"Positional embedding shape: {pos_embed.shape}")
+        print(f"Input image shape: {x.shape}")
+        x = x + pos_embed
 
         # Interaction
         outs = list()
         for i, layer in enumerate(self.interactions):
             indexes = self.interaction_indexes[i]
             x, c = layer(x, c, self.blocks[indexes[0]:indexes[-1] + 1],
-                         deform_inputs1, deform_inputs2, H, W)
-            outs.append(x.transpose(1, 2).view(bs, dim, H, W).contiguous())
-        
+                         deform_inputs1, deform_inputs2, H_adapter, W_adapter)
+            outs.append(x.transpose(1, 2).view(bs, dim, H_adapter, W_adapter).contiguous())
+
         # Split & Reshape
         c2 = c[:, 0:c2.size(1), :]
         c3 = c[:, c2.size(1):c2.size(1) + c3.size(1), :]

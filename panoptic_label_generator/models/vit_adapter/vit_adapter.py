@@ -117,12 +117,10 @@ class ViTAdapter(DinoVisionTransformer):
         c1, c2, c3, c4 = self.spm(x)
         c2, c3, c4 = self._add_level_embed(c2, c3, c4)
         c = torch.cat([c2, c3, c4], dim=1)
-
-        # Input image shape: torch.Size([1, 3, 448, 896])
+        
         _, _, h, w = x.shape  
 
         # Patch embedding - this is correct I (Waasiq) verified it.
-        #x = self.patch_embed.forward(x).to(x.device) # Output: torch.Size([1, 2592, 384])
         x = self.patch_embed(x)
 
         W_vit = w // self.patch_size # Width of the ViT patches: 896 // 14 = 64

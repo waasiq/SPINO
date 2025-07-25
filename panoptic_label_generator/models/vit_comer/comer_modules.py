@@ -323,8 +323,6 @@ class Extractor_CTI(nn.Module):
         
         return query
 
-
-
 class CTI_toV(nn.Module):
     def __init__(self, dim, num_heads=6, n_points=4, n_levels=1, deform_ratio=1.0,
                  norm_layer=partial(nn.LayerNorm, eps=1e-6), init_values=0., with_cp=False, drop=0., drop_path=0., cffn_ratio=0.25):
@@ -364,7 +362,6 @@ class CTI_toV(nn.Module):
             query = _inner_forward(query, feat, H, W)
         
         return query
-
 
 class CTIBlock(nn.Module):
     def __init__(self, dim, num_heads=6, n_points=4, norm_layer=partial(nn.LayerNorm, eps=1e-6),
@@ -430,7 +427,6 @@ class CTIBlock(nn.Module):
                               feat=x, spatial_shapes=deform_inputs2[1],
                               level_start_index=deform_inputs2[2], H=H, W=W)
         return x, c
-
 
 class CNN(nn.Module):
     def __init__(self, inplanes=64, embed_dim=384):
