@@ -19,11 +19,12 @@ from models.eva02 import (
     EVA02Wrapper
 )
 
-from models.sam import get_sam_model 
 from torch import nn
 import torch.nn.functional as F
 from models.vit_adapter.vit_adapter import ViTAdapter
 from models.vit_comer.vit_comer import ViTCoMer
+
+from models.sam import get_sam_model
 
 class FineTuner(pl.LightningModule):
     def __init__(self, model: str, blocks: Optional[List[int]] = None,
@@ -53,6 +54,8 @@ class FineTuner(pl.LightningModule):
             'large_patch14_336': (eva02_large_patch14_336, 'EVA02-Large-14-336'),
             'large_patch14_448': (eva02_large_patch14_448, 'EVA02-Large-14-448')
         }
+
+        
 
         if self.use_vitadapter: 
             self.encoder = ViTAdapter()
@@ -85,12 +88,8 @@ class FineTuner(pl.LightningModule):
             for param in self.encoder.parameters():
                 param.requires_grad = False
 
-        if self.encoder_type == 'sam':
-            self.feat_dim = self.encoder.neck[0].out_channels 
-            self.patch_size = 16
-        else:
-            self.feat_dim = self.encoder.num_features 
-            self.patch_size = self.encoder.patch_size
+        self.feat_dim = self.encoder.num_features
+        self.patch_size = self.encoder.patch_size
         self.encoder.mask_token = None  # can't use ddp_find_unused_parameters_false otherwise
 
         if blocks is None:
@@ -117,38 +116,8 @@ class FineTuner(pl.LightningModule):
 
             x = torch.cat([f1, f2_upsampled, f3_upsampled, f4_upsampled], dim=1)
             return x
-        elif self.encoder_type == 'sam':
-            features = self.encoder(img)  # Shape: [B, embed_dim, 64, 64]
-            
-            # Convert spatial features to token format for consistency with other ViTs
-            B, C, H, W = features.shape
-            # Flatten spatial dimensions: [B, C, H*W] -> [B, H*W, C]
-            features_tokens = features.flatten(2).transpose(1, 2)  # [B, H*W, C]
-            # Create block output with both 'token' and 'x' keys for compatibility
-            block_outputs = [{'token': features_tokens, 'x': features_tokens}] 
-
-            if self.blocks is None:
-                block_outputs = [block_outputs[-1]]  # Take the last layer
-                
-            outs = []
-            for block_output in block_outputs:
-                if isinstance(block_output, dict):
-                    x = block_output[feature_key]  # Extract the requested feature type
-                else:
-                    x = block_output  # If it's direct tensor output
-                    
-                if feature_key == 'attn':
-                    if return_attention_features:
-                        return x
-                    else:
-                        raise NotImplementedError("SAM attention extraction not implemented")
-                        
-                if feature_key in ['q', 'k', 'v']:
-                    raise NotImplementedError("SAM doesn't support q/k/v feature extraction in this implementation")
-                    
-                # x should be in format [B, H*W, C] (without class token) or [B, H*W+1, C] (with class token)
-                outs.append(x)
-        elif self.encoder_type == 'dinov2':
+    
+        elif self.encoder_type == 'dinov2' or self.encoder_type == 'sam':
             with torch.no_grad():
                 block_outputs = self.encoder.forward_features(
                     img,
@@ -188,29 +157,14 @@ class FineTuner(pl.LightningModule):
                     if feature_key in ['q', 'k', 'v']:
                         raise NotImplementedError("EVA02 doesn't support q/k/v feature extraction")
                     outs.append(x)
-        
-        # Handle the final processing differently for SAM vs other encoders
-        if self.encoder_type == 'sam':
-            with torch.no_grad():
-                x = torch.cat(outs, dim=2)  # (B, Patches, feat_dim * self.num_blocks)
-                # SAM doesn't have class token, so don't remove anything
-                # x = x[:, 1:, :]  # Skip this line for SAM
-                x = x.permute((0, 2, 1)).contiguous()  # (B, feat_dim, H*W)
-                x = x.reshape((x.shape[0], self.feat_dim * self.num_blocks, patches_h,
-                                patches_w))  # (B, feat_dim, H, W)
-                if self.upsample_factor is not None:
-                    x = nn.functional.interpolate(x, scale_factor=self.upsample_factor, mode='bilinear',
-                                                    align_corners=False)  # (B, feat_dim, H, W)
-        else:
-            # For DINOv2, EVA02, and other ViTs with class tokens
-            with torch.no_grad():
-                x = torch.cat(outs, dim=2)  # (B, Patches+1, feat_dim * self.num_blocks)
-                x = x[:, 1:, :]  # (B, Patches, feat_dim) - Remove class token
-                x = x.permute((0, 2, 1)).contiguous()  # (B, feat_dim, H*W)
-                x = x.reshape((x.shape[0], self.feat_dim * self.num_blocks, patches_h,
-                                patches_w))  # (B, feat_dim, H, W)
-                if self.upsample_factor is not None:
-                    x = nn.functional.interpolate(x, scale_factor=self.upsample_factor, mode='bilinear',
-                                                    align_corners=False)  # (B, feat_dim, H, W)
-
+            
+        with torch.no_grad():
+            x = torch.cat(outs, dim=2)  # (B, Patches+1, feat_dim * self.num_blocks)
+            x = x[:, 1:, :]  # (B, Patches, feat_dim)
+            x = x.permute((0, 2, 1)).contiguous()  # (B, feat_dim, H*W)
+            x = x.reshape((x.shape[0], self.feat_dim * self.num_blocks, patches_h,
+                            patches_w))  # (B, feat_dim, H, W)
+            if self.upsample_factor is not None:
+                x = nn.functional.interpolate(x, scale_factor=self.upsample_factor, mode='bilinear',
+                                                align_corners=False)  # (B, feat_dim, H, W)
         return x

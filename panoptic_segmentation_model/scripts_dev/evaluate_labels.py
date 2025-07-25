@@ -12,7 +12,7 @@ import socket
 
 import torch
 from algos import BinaryMaskLoss, CenterLoss, InstanceSegAlgo, OffsetLoss
-from datasets import Cityscapes, Kitti360
+from datasets import Cityscapes
 from eval import PanopticEvaluator, SemanticEvaluator
 from io_utils.visualizations import plot_confusion_matrix
 from misc import train_utils
