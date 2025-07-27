@@ -109,41 +109,26 @@ class ViTCoMer(DinoVisionTransformer):
         return c2, c3, c4
 
     def forward(self, x):
-        # deform_inputs are not used consistently; they can be generated inside the blocks
-        # if needed, but the logic should be self-contained in the CTI blocks.
-
-        # 1. === SPM forward and Shape Calculation ===
-        _, _, h_img, w_img = x.shape  # Original image size: 336, 784
+        _, _, h_img, w_img = x.shape  
         c1, c2, c3, c4 = self.spm(x)
         c1_orig = c1
 
         c_shapes = [c2.shape[2:], c3.shape[2:], c4.shape[2:]]
         c_lens = [c2.shape[1], c3.shape[1], c4.shape[1]]
 
-
-        # Store the exact spatial shapes and sequence lengths of the original CNN features
         bs, _, c2_h, c2_w = c2.shape
         _, _, c3_h, c3_w = c3.shape
         _, _, c4_h, c4_w = c4.shape
         
-        # These are now the ground truth for reshaping later
-        # c2_h=42, c2_w=98
-        # c3_h=21, c3_w=49
-        # c4_h=10, c4_w=24
-        
-        # Flatten features and store their original lengths for slicing
         c1 = c1.view(bs, self.embed_dim, -1).transpose(1, 2)
         c2 = c2.view(bs, self.embed_dim, -1).transpose(1, 2)
         c3 = c3.view(bs, self.embed_dim, -1).transpose(1, 2)
         c4 = c4.view(bs, self.embed_dim, -1).transpose(1, 2)
 
         c2_len, c3_len, c4_len = c2.shape[1], c3.shape[1], c4.shape[1]
-
-        # Add level embeddings
         c2, c3, c4 = self._add_level_embed(c2, c3, c4)
         c = torch.cat([c2, c3, c4], dim=1)
 
-        # 2. === Patch Embedding forward ===
         x = self.patch_embed(x)
         
         W_vit = w_img // self.patch_size   # 56
@@ -151,10 +136,6 @@ class ViTCoMer(DinoVisionTransformer):
         pos_embed = self._get_pos_embed(self.pos_embed[:, 1:], H_vit, W_vit)
         x = x + pos_embed
 
-        # 3. === Interaction ===
-        # The CTI blocks should ideally handle their own inputs without needing
-        # pre-calculated deform_inputs passed from the top level.
-        # We pass the ground-truth shapes of the middle CNN layer (c3).
         H_adapter, W_adapter = c3_h, c3_w
         
         outs = list()
@@ -162,28 +143,22 @@ class ViTCoMer(DinoVisionTransformer):
             indexes = self.interaction_indexes[i]   
             x, c = layer(
                     x, c, self.blocks[indexes[0]:indexes[-1] + 1],
-                    H=H_adapter,          # Pass H
-                    W=W_adapter,          # Pass W
+                    H=H_adapter,          
+                    W=W_adapter,          
                     c_shapes=c_shapes,
                     c_lens=c_lens,
                     patch_size=self.patch_size
                 )
 
         
-        # The logic for creating 'outs' seems to be for a different architecture (e.g., SegFormer)
-        # Ensure this is what you intend.
         x_spatial = x.transpose(1, 2).view(bs, self.embed_dim, H_vit, W_vit)
         x_resized_to_adapter = F.interpolate(x_spatial, size=(H_adapter, W_adapter), mode='bilinear', align_corners=False)
         outs.append(x_resized_to_adapter.contiguous())
 
-        # 4. === Split & Reshape (ROBUST METHOD) ===
-        # Use the stored original lengths for precise slicing.
         c2_out = c[:, :c2_len, :]
         c3_out = c[:, c2_len : c2_len + c3_len, :]
         c4_out = c[:, c2_len + c3_len : c2_len + c3_len + c4_len, :]
 
-        # Use the stored original spatial dimensions for safe reshaping.
-        # This completely removes the need for the fragile factorization logic.
         c2_reshaped = c2_out.transpose(1, 2).view(bs, self.embed_dim, c2_h, c2_w)
         c3_reshaped = c3_out.transpose(1, 2).view(bs, self.embed_dim, c3_h, c3_w)
         c4_reshaped = c4_out.transpose(1, 2).view(bs, self.embed_dim, c4_h, c4_w)
@@ -191,10 +166,7 @@ class ViTCoMer(DinoVisionTransformer):
         c1_out = self.up(c2_reshaped) + c1_orig
 
         if self.add_vit_feature:
-            # Assuming 4 interaction blocks, one for each feature scale
             x1, x2, x3, x4 = outs
-            # This part requires careful thought on which ViT output corresponds to which CNN scale
-            # Example resizing:
             x1 = F.interpolate(x1, size=(c1_out.shape[2], c1_out.shape[3]), mode='bilinear', align_corners=False)
             x2 = F.interpolate(x2, size=(c2_reshaped.shape[2], c2_reshaped.shape[3]), mode='bilinear', align_corners=False)
             x3 = F.interpolate(x3, size=(c3_reshaped.shape[2], c3_reshaped.shape[3]), mode='bilinear', align_corners=False)

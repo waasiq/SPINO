@@ -116,18 +116,14 @@ class DWConv(nn.Module):
     def forward(self, x, H, W):
         B, N, C = x.shape
         
-        # Calculate actual sequence lengths based on spatial dimensions
         len_x1 = H * 2 * W * 2  # 8x downsampling
         len_x2 = H * W           # 16x downsampling  
         len_x3 = N - len_x1 - len_x2  # 32x downsampling (remainder)
         
-        # Calculate actual spatial dimensions for x3
         H3 = int(math.sqrt(len_x3 * H / W)) if len_x3 > 0 else H // 2
         W3 = len_x3 // H3 if H3 > 0 else W // 2
         
-        # Adjust H3, W3 to ensure H3 * W3 = len_x3
         if H3 * W3 != len_x3 and len_x3 > 0:
-            # Find best factor pair for len_x3
             best_h3 = H // 2
             best_w3 = W // 2
             min_diff = float('inf')
@@ -135,7 +131,6 @@ class DWConv(nn.Module):
             for h in range(1, int(math.sqrt(len_x3)) + 1):
                 if len_x3 % h == 0:
                     w = len_x3 // h
-                    # Prefer dimensions close to expected ratios
                     expected_h = H // 2
                     expected_w = W // 2
                     diff = abs(h - expected_h) + abs(w - expected_w)
@@ -182,18 +177,15 @@ class MultiDWConv(nn.Module):
     def forward(self, x, H, W):
         B, N, C = x.shape
         
-        # Calculate actual sequence lengths based on spatial dimensions
         len_x1 = H * 2 * W * 2  # 8x downsampling
         len_x2 = H * W           # 16x downsampling  
         len_x3 = N - len_x1 - len_x2  # 32x downsampling (remainder)
         
-        # Calculate actual spatial dimensions for x3
+        # Calculate actual spatial dimensions for x3 D: 
         H3 = int(math.sqrt(len_x3 * H / W)) if len_x3 > 0 else H // 2
         W3 = len_x3 // H3 if H3 > 0 else W // 2
         
-        # Adjust H3, W3 to ensure H3 * W3 = len_x3
         if H3 * W3 != len_x3 and len_x3 > 0:
-            # Find best factor pair for len_x3
             best_h3 = H // 2
             best_w3 = W // 2
             min_diff = float('inf')
@@ -201,7 +193,6 @@ class MultiDWConv(nn.Module):
             for h in range(1, int(math.sqrt(len_x3)) + 1):
                 if len_x3 % h == 0:
                     w = len_x3 // h
-                    # Prefer dimensions close to expected ratios
                     expected_h = H // 2
                     expected_w = W // 2
                     diff = abs(h - expected_h) + abs(w - expected_w)
@@ -313,21 +304,15 @@ class CTI_toC(nn.Module):
                     for h in range(1, int(math.sqrt(N_feat)) + 1):
                         if N_feat % h == 0:
                             w = N_feat // h
-                            if abs(w/h - 2.0) < 0.5:  # Prefer 2:1 aspect ratio
+                            if abs(w/h - 2.0) < 0.5: 
                                 H_vit, W_vit = h, w
                                 break
             
-            # Split CNN features into different scales
             n = N_query // 21
             x1 = query[:, 0:16 * n, :].contiguous()      # 8x features: H*2 * W*2 * 4 = H*W*16
             x2 = query[:, 16 * n:20 * n, :].contiguous()  # 16x features: H * W * 4 = H*W*4 -> but should be H*W
             x3 = query[:, 20 * n:, :].contiguous()        # 32x features: H//2 * W//2 * 4 = H*W//4 -> should be H*W//4
             
-            # Actually, let me recalculate based on the spatial dimensions:
-            # For H=42, W=84: H*W*4=14112, H*W=3528, H*W//4=882
-            # Total: 14112 + 3528 + 882 = 18522, but n=N_query//21 gives different splits
-            
-            # Let's use the actual expected sizes:
             len_x1 = H * 2 * W * 2  # 8x downsampling: 84*168 = 14112
             len_x2 = H * W           # 16x downsampling: 42*84 = 3528  
             len_x3 = N_query - len_x1 - len_x2  # remainder
@@ -336,9 +321,7 @@ class CTI_toC(nn.Module):
             x2 = query[:, len_x1:len_x1+len_x2, :].contiguous()
             x3 = query[:, len_x1+len_x2:, :].contiguous()
             
-            # Resize ViT features to match x2 (16x downsampling, H*W elements)
             if x2.shape[1] != feat.shape[1]:
-                # Resize ViT features from (H_vit, W_vit) to (H, W)
                 feat_spatial = feat.transpose(1, 2).view(B, C, H_vit, W_vit)
                 feat_resized = F.interpolate(feat_spatial, size=(H, W), mode='bilinear', align_corners=False)
                 feat_matched = feat_resized.flatten(2).transpose(1, 2)
@@ -392,7 +375,6 @@ class Extractor_CTI(nn.Module):
             B, N_query, C = query.shape
             B, N_feat, C = feat.shape
             
-            # Calculate ViT spatial dimensions
             H_vit = (H * 16) // patch_size
             W_vit = (W * 16) // patch_size
             
@@ -408,8 +390,7 @@ class Extractor_CTI(nn.Module):
                             if abs(w/h - 2.0) < 0.5:
                                 H_vit, W_vit = h, w
                                 break
-            
-            # Split CNN features into different scales (same logic as CTI_toC)
+
             len_x1 = H * 2 * W * 2  # 8x downsampling
             len_x2 = H * W           # 16x downsampling  
             len_x3 = N_query - len_x1 - len_x2  # remainder
@@ -467,7 +448,6 @@ class CTI_toV(nn.Module):
 
         def _inner_forward(query, feat, reference_points, spatial_shapes, level_start_index, H, W,
                         c_shapes, c_lens, patch_size):
-            # ... (the inner logic I provided before is correct) ...
             H_vit = (H * 16) // patch_size
             W_vit = (W * 16) // patch_size
             vit_ref_points = get_reference_points([(H_vit, W_vit)], query.device)
@@ -484,8 +464,6 @@ class CTI_toV(nn.Module):
             query = query + self.drop_path(self.gamma * cnn_info)
             return query
 
-        # --- THIS IS THE FIX ---
-        # Add 'patch_size' to the list of arguments for checkpointing.
         if self.with_cp and query.requires_grad:
             return cp.checkpoint(_inner_forward, query, feat, reference_points, spatial_shapes, level_start_index, H, W, c_shapes, c_lens, patch_size)
         else:
@@ -533,34 +511,26 @@ class CTIBlock(nn.Module):
         H_vit = (H * 16) // patch_size
         W_vit = (W * 16) // patch_size
             
-        # Verify calculation
         expected_N = H_vit * W_vit
         if expected_N != N:
             print(f"Warning: Expected ViT sequence length {expected_N}, got {N}")
             print(f"H_vit={H_vit}, W_vit={W_vit}, actual N={N}")
-            # Fallback to factor-based calculation
             for h in range(1, int(math.sqrt(N)) + 1):
                 if N % h == 0:
                     w = N // h
-                    # Choose the pair that's closest to the expected aspect ratio
                     expected_ratio = W_vit / H_vit if H_vit > 0 else 2.0
                     actual_ratio = w / h
-                    if abs(actual_ratio - expected_ratio) < 0.1:  # Allow some tolerance
+                    if abs(actual_ratio - expected_ratio) < 0.1:  
                         H_vit, W_vit = h, w
                         break
         
         if self.use_CTI_toV:
-            # Pre-process CNN features if needed (e.g., with MRFP)
             c_processed = self.mrfp(c, H, W)
-            
-            # Directly generate inputs for the attention call
             cnn_spatial_shapes = x.new_tensor(c_shapes, dtype=torch.long)
             cnn_level_start_index = torch.cat((cnn_spatial_shapes.new_zeros((1,)), cnn_spatial_shapes.prod(1).cumsum(0)[:-1]))
 
-            # Call the corrected CTI_toV
             x = self.cti_tov(
                 query=x,
-                # reference_points are now generated inside CTI_toV
                 reference_points=None, 
                 feat=c_processed,
                 spatial_shapes=cnn_spatial_shapes,
