@@ -8,7 +8,7 @@
 # It will automatically retry if it connects to 'dlcgpu07' or 'dlcgpu04',
 # and will keep the connection open once it lands on a different node.
 
-# dlcgpu07 and dlcgpu04 have gpu issues and should not be used.
+#  dlcgpu04 have gpu issues and should not be used.
 
 echo "Starting GPU cluster connection attempts..."
 

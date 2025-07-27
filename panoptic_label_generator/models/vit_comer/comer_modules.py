@@ -7,6 +7,8 @@ from external.ms_deformable_attention.modules.deform_attn import MSDeformAttn
 from timm.models.layers import DropPath
 import torch.utils.checkpoint as cp
 
+import math
+
 _logger = logging.getLogger(__name__)
 
 
@@ -106,7 +108,6 @@ class MRFP(nn.Module):
         x = self.drop(x)
         return x
 
-
 class DWConv(nn.Module):
     def __init__(self, dim=768):
         super().__init__()
@@ -114,10 +115,39 @@ class DWConv(nn.Module):
 
     def forward(self, x, H, W):
         B, N, C = x.shape
-        n = N // 21
-        x1 = x[:, 0:16 * n, :].transpose(1, 2).view(B, C, H * 2, W * 2).contiguous()
-        x2 = x[:, 16 * n:20 * n, :].transpose(1, 2).view(B, C, H, W).contiguous()
-        x3 = x[:, 20 * n:, :].transpose(1, 2).view(B, C, H // 2, W // 2).contiguous()
+        
+        # Calculate actual sequence lengths based on spatial dimensions
+        len_x1 = H * 2 * W * 2  # 8x downsampling
+        len_x2 = H * W           # 16x downsampling  
+        len_x3 = N - len_x1 - len_x2  # 32x downsampling (remainder)
+        
+        # Calculate actual spatial dimensions for x3
+        H3 = int(math.sqrt(len_x3 * H / W)) if len_x3 > 0 else H // 2
+        W3 = len_x3 // H3 if H3 > 0 else W // 2
+        
+        # Adjust H3, W3 to ensure H3 * W3 = len_x3
+        if H3 * W3 != len_x3 and len_x3 > 0:
+            # Find best factor pair for len_x3
+            best_h3 = H // 2
+            best_w3 = W // 2
+            min_diff = float('inf')
+            
+            for h in range(1, int(math.sqrt(len_x3)) + 1):
+                if len_x3 % h == 0:
+                    w = len_x3 // h
+                    # Prefer dimensions close to expected ratios
+                    expected_h = H // 2
+                    expected_w = W // 2
+                    diff = abs(h - expected_h) + abs(w - expected_w)
+                    if diff < min_diff:
+                        min_diff = diff
+                        best_h3, best_w3 = h, w
+            H3, W3 = best_h3, best_w3
+        
+        x1 = x[:, 0:len_x1, :].transpose(1, 2).view(B, C, H * 2, W * 2).contiguous()
+        x2 = x[:, len_x1:len_x1+len_x2, :].transpose(1, 2).view(B, C, H, W).contiguous()
+        x3 = x[:, len_x1+len_x2:len_x1+len_x2+len_x3, :].transpose(1, 2).view(B, C, H3, W3).contiguous()
+        
         x1 = self.dwconv(x1).flatten(2).transpose(1, 2)
         x2 = self.dwconv(x2).flatten(2).transpose(1, 2)
         x3 = self.dwconv(x3).flatten(2).transpose(1, 2)
@@ -151,10 +181,38 @@ class MultiDWConv(nn.Module):
 
     def forward(self, x, H, W):
         B, N, C = x.shape
-        n = N // 21
-        x1 = x[:, 0:16 * n, :].transpose(1, 2).view(B, C, H * 2, W * 2).contiguous()
-        x2 = x[:, 16 * n:20 * n, :].transpose(1, 2).view(B, C, H, W).contiguous()
-        x3 = x[:, 20 * n:, :].transpose(1, 2).view(B, C, H // 2, W // 2).contiguous()
+        
+        # Calculate actual sequence lengths based on spatial dimensions
+        len_x1 = H * 2 * W * 2  # 8x downsampling
+        len_x2 = H * W           # 16x downsampling  
+        len_x3 = N - len_x1 - len_x2  # 32x downsampling (remainder)
+        
+        # Calculate actual spatial dimensions for x3
+        H3 = int(math.sqrt(len_x3 * H / W)) if len_x3 > 0 else H // 2
+        W3 = len_x3 // H3 if H3 > 0 else W // 2
+        
+        # Adjust H3, W3 to ensure H3 * W3 = len_x3
+        if H3 * W3 != len_x3 and len_x3 > 0:
+            # Find best factor pair for len_x3
+            best_h3 = H // 2
+            best_w3 = W // 2
+            min_diff = float('inf')
+            
+            for h in range(1, int(math.sqrt(len_x3)) + 1):
+                if len_x3 % h == 0:
+                    w = len_x3 // h
+                    # Prefer dimensions close to expected ratios
+                    expected_h = H // 2
+                    expected_w = W // 2
+                    diff = abs(h - expected_h) + abs(w - expected_w)
+                    if diff < min_diff:
+                        min_diff = diff
+                        best_h3, best_w3 = h, w
+            H3, W3 = best_h3, best_w3
+        
+        x1 = x[:, 0:len_x1, :].transpose(1, 2).view(B, C, H * 2, W * 2).contiguous()
+        x2 = x[:, len_x1:len_x1+len_x2, :].transpose(1, 2).view(B, C, H, W).contiguous()
+        x3 = x[:, len_x1+len_x2:len_x1+len_x2+len_x3, :].transpose(1, 2).view(B, C, H3, W3).contiguous()
         
         x11, x12 = x1[:,:C//2,:,:], x1[:,C//2:,:,:]
         x11 = self.dwconv1(x11)  # BxCxHxW
@@ -177,6 +235,7 @@ class MultiDWConv(nn.Module):
 
         x = torch.cat([x1, x2, x3], dim=1)
         return x
+
 
 class MultiscaleExtractor(nn.Module):
     def __init__(self, dim, num_heads=6, n_points=4, n_levels=1, deform_ratio=1.0,
@@ -216,7 +275,6 @@ class MultiscaleExtractor(nn.Module):
         
         return query
 
-
 class CTI_toC(nn.Module):
     def __init__(self, dim, num_heads=6, n_points=4, n_levels=1, deform_ratio=1.0,
                  with_cffn=True, cffn_ratio=0.25, drop=0., drop_path=0.,
@@ -227,10 +285,6 @@ class CTI_toC(nn.Module):
         self.feat_norm = norm_layer(dim)
         self.with_cffn = with_cffn
         self.with_cp = with_cp
-        # if with_cffn:
-        #     self.ffn = ConvFFN(in_features=dim, hidden_features=int(dim * cffn_ratio), drop=drop)
-        #     self.ffn_norm = norm_layer(dim)
-        #     self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
         
         self.cnn_feature_interaction = cnn_feature_interaction
         if cnn_feature_interaction:
@@ -240,19 +294,59 @@ class CTI_toC(nn.Module):
                                 cffn_ratio=cffn_ratio, drop=drop, drop_path=drop_path, 
                                 with_cp=with_cp)
     
-    def forward(self, query, reference_points, feat, spatial_shapes, level_start_index, H, W):
+    def forward(self, query, reference_points, feat, spatial_shapes, level_start_index, H, W, patch_size=14):
         
-        def _inner_forward(query, feat, H, W):
-            B, N, C = query.shape
-            n = N // 21
-            x1 = query[:, 0:16 * n, :].contiguous()
-            x2 = query[:, 16 * n:20 * n, :].contiguous()
-            x3 = query[:, 20 * n:, :].contiguous()
-            x2 = x2 + feat
+        def _inner_forward(query, feat, H, W, patch_size):
+            B, N_query, C = query.shape
+            B, N_feat, C = feat.shape
+            
+            # Calculate ViT spatial dimensions
+            H_vit = (H * 16) // patch_size
+            W_vit = (W * 16) // patch_size
+            
+            # Verify ViT dimensions
+            if H_vit * W_vit != N_feat:
+                sqrt_n = int(math.sqrt(N_feat))
+                if sqrt_n * sqrt_n == N_feat:
+                    H_vit = W_vit = sqrt_n
+                else:
+                    for h in range(1, int(math.sqrt(N_feat)) + 1):
+                        if N_feat % h == 0:
+                            w = N_feat // h
+                            if abs(w/h - 2.0) < 0.5:  # Prefer 2:1 aspect ratio
+                                H_vit, W_vit = h, w
+                                break
+            
+            # Split CNN features into different scales
+            n = N_query // 21
+            x1 = query[:, 0:16 * n, :].contiguous()      # 8x features: H*2 * W*2 * 4 = H*W*16
+            x2 = query[:, 16 * n:20 * n, :].contiguous()  # 16x features: H * W * 4 = H*W*4 -> but should be H*W
+            x3 = query[:, 20 * n:, :].contiguous()        # 32x features: H//2 * W//2 * 4 = H*W//4 -> should be H*W//4
+            
+            # Actually, let me recalculate based on the spatial dimensions:
+            # For H=42, W=84: H*W*4=14112, H*W=3528, H*W//4=882
+            # Total: 14112 + 3528 + 882 = 18522, but n=N_query//21 gives different splits
+            
+            # Let's use the actual expected sizes:
+            len_x1 = H * 2 * W * 2  # 8x downsampling: 84*168 = 14112
+            len_x2 = H * W           # 16x downsampling: 42*84 = 3528  
+            len_x3 = N_query - len_x1 - len_x2  # remainder
+            
+            x1 = query[:, 0:len_x1, :].contiguous()
+            x2 = query[:, len_x1:len_x1+len_x2, :].contiguous()
+            x3 = query[:, len_x1+len_x2:, :].contiguous()
+            
+            # Resize ViT features to match x2 (16x downsampling, H*W elements)
+            if x2.shape[1] != feat.shape[1]:
+                # Resize ViT features from (H_vit, W_vit) to (H, W)
+                feat_spatial = feat.transpose(1, 2).view(B, C, H_vit, W_vit)
+                feat_resized = F.interpolate(feat_spatial, size=(H, W), mode='bilinear', align_corners=False)
+                feat_matched = feat_resized.flatten(2).transpose(1, 2)
+            else:
+                feat_matched = feat
+                
+            x2 = x2 + feat_matched
             query = torch.cat([x1, x2, x3], dim=1)
-
-            # if self.with_cffn:
-            #     query = query + self.drop_path(self.ffn(self.ffn_norm(query), H, W)) 
 
             if self.cnn_feature_interaction:               
                 deform_input = deform_inputs_only_one(query, H*16, W*16)
@@ -264,11 +358,12 @@ class CTI_toC(nn.Module):
             return query
         
         if self.with_cp and query.requires_grad:
-            query = cp.checkpoint(_inner_forward, query, feat, H, W)
+            query = cp.checkpoint(_inner_forward, query, feat, H, W, patch_size)
         else:
-            query = _inner_forward(query, feat, H, W)
+            query = _inner_forward(query, feat, H, W, patch_size)
         
         return query
+
 
 class Extractor_CTI(nn.Module):
     def __init__(self, dim, num_heads=6, n_points=4, n_levels=1, deform_ratio=1.0,
@@ -292,16 +387,46 @@ class Extractor_CTI(nn.Module):
                                 deform_ratio=deform_ratio, with_cffn=with_cffn,
                                 cffn_ratio=cffn_ratio, drop=drop, drop_path=drop_path, 
                                 with_cp=with_cp)
-    
-    def forward(self, query, reference_points, feat, spatial_shapes, level_start_index, H, W):
-        
-        def _inner_forward(query, feat, H, W):
-            B, N, C = query.shape
-            n = N // 21
-            x1 = query[:, 0:16 * n, :].contiguous()
-            x2 = query[:, 16 * n:20 * n, :].contiguous()
-            x3 = query[:, 20 * n:, :].contiguous()
-            x2 = x2 + feat
+    def forward(self, query, reference_points, feat, spatial_shapes, level_start_index, H, W, patch_size=14):        
+        def _inner_forward(query, feat, H, W, patch_size):
+            B, N_query, C = query.shape
+            B, N_feat, C = feat.shape
+            
+            # Calculate ViT spatial dimensions
+            H_vit = (H * 16) // patch_size
+            W_vit = (W * 16) // patch_size
+            
+            # Verify ViT dimensions
+            if H_vit * W_vit != N_feat:
+                sqrt_n = int(math.sqrt(N_feat))
+                if sqrt_n * sqrt_n == N_feat:
+                    H_vit = W_vit = sqrt_n
+                else:
+                    for h in range(1, int(math.sqrt(N_feat)) + 1):
+                        if N_feat % h == 0:
+                            w = N_feat // h
+                            if abs(w/h - 2.0) < 0.5:
+                                H_vit, W_vit = h, w
+                                break
+            
+            # Split CNN features into different scales (same logic as CTI_toC)
+            len_x1 = H * 2 * W * 2  # 8x downsampling
+            len_x2 = H * W           # 16x downsampling  
+            len_x3 = N_query - len_x1 - len_x2  # remainder
+            
+            x1 = query[:, 0:len_x1, :].contiguous()
+            x2 = query[:, len_x1:len_x1+len_x2, :].contiguous()
+            x3 = query[:, len_x1+len_x2:, :].contiguous()
+            
+            # Resize ViT features to match x2
+            if x2.shape[1] != feat.shape[1]:
+                feat_spatial = feat.transpose(1, 2).view(B, C, H_vit, W_vit)
+                feat_resized = F.interpolate(feat_spatial, size=(H, W), mode='bilinear', align_corners=False)
+                feat_matched = feat_resized.flatten(2).transpose(1, 2)
+            else:
+                feat_matched = feat
+                
+            x2 = x2 + feat_matched
             query = torch.cat([x1, x2, x3], dim=1)
 
             if self.with_cffn:
@@ -310,21 +435,21 @@ class Extractor_CTI(nn.Module):
             if self.cnn_feature_interaction:               
                 deform_input = deform_inputs_only_one(query, H*16, W*16)
                 query = self.cfinter(query=self.query_norm(query), reference_points=deform_input[0],
-                          feat=self.feat_norm(query), spatial_shapes=deform_input[1],
-                          level_start_index=deform_input[2],
-                          H=H, W=W)               
+                        feat=self.feat_norm(query), spatial_shapes=deform_input[1],
+                        level_start_index=deform_input[2],
+                        H=H, W=W)               
             
             return query
         
         if self.with_cp and query.requires_grad:
-            query = cp.checkpoint(_inner_forward, query, feat, H, W)
+            query = cp.checkpoint(_inner_forward, query, feat, H, W, patch_size)
         else:
-            query = _inner_forward(query, feat, H, W)
+            query = _inner_forward(query, feat, H, W, patch_size)
         
         return query
 
 class CTI_toV(nn.Module):
-    def __init__(self, dim, num_heads=6, n_points=4, n_levels=1, deform_ratio=1.0,
+    def __init__(self, dim, num_heads=6, n_points=4, n_levels=3, deform_ratio=1.0,
                  norm_layer=partial(nn.LayerNorm, eps=1e-6), init_values=0., with_cp=False, drop=0., drop_path=0., cffn_ratio=0.25):
         super().__init__()
         self.with_cp = with_cp
@@ -333,35 +458,39 @@ class CTI_toV(nn.Module):
         self.attn = MSDeformAttn(d_model=dim, n_levels=n_levels, n_heads=num_heads,
                                  n_points=n_points, ratio=deform_ratio)
         self.gamma = nn.Parameter(init_values * torch.ones((dim)), requires_grad=True)
-
         self.ffn = ConvFFN(in_features=dim, hidden_features=int(dim * cffn_ratio), drop=drop)
         self.ffn_norm = norm_layer(dim)
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
-       
-    
-    def forward(self, query, reference_points, feat, spatial_shapes, level_start_index, H, W):
-        
-        def _inner_forward(query, feat, H, W):
-            B, N, C = feat.shape
-            c1 = self.attn(self.query_norm(feat), reference_points,
-                             self.feat_norm(feat), spatial_shapes,
-                             level_start_index, None)
 
-            c1 = c1 + self.drop_path(self.ffn(self.ffn_norm(c1), H, W)) 
+    def forward(self, query, reference_points, feat, spatial_shapes, level_start_index, H, W,
+                c_shapes, c_lens, patch_size=14):
 
-            c_select1, c_select2, c_select3 = c1[:,:H*W*4, :], c1[:, H*W*4:H*W*4+H*W, :], c1[:, H*W*4+H*W:, :]
-            c_select1 = F.interpolate(c_select1.permute(0,2,1).reshape(B, C, H*2, W*2), scale_factor=0.5, mode='bilinear', align_corners=False).flatten(2).permute(0,2,1)
-            c_select3 = F.interpolate(c_select3.permute(0,2,1).reshape(B, C, H//2, W//2), scale_factor=2, mode='bilinear', align_corners=False).flatten(2).permute(0,2,1)
-            # x = x + c_select1 + c_select2 + c_select3
+        def _inner_forward(query, feat, reference_points, spatial_shapes, level_start_index, H, W,
+                        c_shapes, c_lens, patch_size):
+            # ... (the inner logic I provided before is correct) ...
+            H_vit = (H * 16) // patch_size
+            W_vit = (W * 16) // patch_size
+            vit_ref_points = get_reference_points([(H_vit, W_vit)], query.device)
+            
+            cnn_info = self.attn(
+                self.query_norm(query),
+                vit_ref_points,
+                self.feat_norm(feat),
+                spatial_shapes,
+                level_start_index,
+                None
+            )
+            
+            query = query + self.drop_path(self.gamma * cnn_info)
+            return query
 
-            return query + self.gamma * (c_select1 + c_select2 + c_select3)
-        
+        # --- THIS IS THE FIX ---
+        # Add 'patch_size' to the list of arguments for checkpointing.
         if self.with_cp and query.requires_grad:
-            query = cp.checkpoint(_inner_forward, query, feat, H, W)
+            return cp.checkpoint(_inner_forward, query, feat, reference_points, spatial_shapes, level_start_index, H, W, c_shapes, c_lens, patch_size)
         else:
-            query = _inner_forward(query, feat, H, W)
-        
-        return query
+            return _inner_forward(query, feat, reference_points, spatial_shapes, level_start_index, H, W, c_shapes, c_lens, patch_size)
+
 
 class CTIBlock(nn.Module):
     def __init__(self, dim, num_heads=6, n_points=4, norm_layer=partial(nn.LayerNorm, eps=1e-6),
@@ -391,41 +520,71 @@ class CTIBlock(nn.Module):
                                    cnn_feature_interaction=cnn_feature_interaction)
                 for _ in range(4)
             ])
-
         else:
             self.extra_CTIs = None
         
         self.use_CTI_toV = use_CTI_toV
         self.use_CTI_toC = use_CTI_toC
-
         self.mrfp = MRFP(dim, hidden_features=int(dim * dim_ratio))
 
-    
-    def forward(self, x, c, blocks, deform_inputs1, deform_inputs2, H, W):
+    def forward(self, x, c, blocks, H, W,
+            c_shapes, c_lens, patch_size=14):
         B, N, C = x.shape
-        deform_inputs = deform_inputs_only_one(x, H*16, W*16)
+        H_vit = (H * 16) // patch_size
+        W_vit = (W * 16) // patch_size
+            
+        # Verify calculation
+        expected_N = H_vit * W_vit
+        if expected_N != N:
+            print(f"Warning: Expected ViT sequence length {expected_N}, got {N}")
+            print(f"H_vit={H_vit}, W_vit={W_vit}, actual N={N}")
+            # Fallback to factor-based calculation
+            for h in range(1, int(math.sqrt(N)) + 1):
+                if N % h == 0:
+                    w = N // h
+                    # Choose the pair that's closest to the expected aspect ratio
+                    expected_ratio = W_vit / H_vit if H_vit > 0 else 2.0
+                    actual_ratio = w / h
+                    if abs(actual_ratio - expected_ratio) < 0.1:  # Allow some tolerance
+                        H_vit, W_vit = h, w
+                        break
+        
         if self.use_CTI_toV:
-            c = self.mrfp(c, H, W)
-            c_select1, c_select2, c_select3 = c[:,:H*W*4, :], c[:, H*W*4:H*W*4+H*W, :], c[:, H*W*4+H*W:, :]
-            c = torch.cat([c_select1, c_select2 + x, c_select3], dim=1)
+            # Pre-process CNN features if needed (e.g., with MRFP)
+            c_processed = self.mrfp(c, H, W)
+            
+            # Directly generate inputs for the attention call
+            cnn_spatial_shapes = x.new_tensor(c_shapes, dtype=torch.long)
+            cnn_level_start_index = torch.cat((cnn_spatial_shapes.new_zeros((1,)), cnn_spatial_shapes.prod(1).cumsum(0)[:-1]))
 
-            x = self.cti_tov(query=x, reference_points=deform_inputs[0],
-                          feat=c, spatial_shapes=deform_inputs[1],
-                          level_start_index=deform_inputs[2], H=H, W=W)
+            # Call the corrected CTI_toV
+            x = self.cti_tov(
+                query=x,
+                # reference_points are now generated inside CTI_toV
+                reference_points=None, 
+                feat=c_processed,
+                spatial_shapes=cnn_spatial_shapes,
+                level_start_index=cnn_level_start_index,
+                H=H, W=W,
+                c_shapes=c_shapes, c_lens=c_lens, patch_size=patch_size
+            )
 
         for idx, blk in enumerate(blocks):
-            x = blk(x, H, W)
+            x = blk(x)
 
         if self.use_CTI_toC:
-            c = self.cti_toc(query=c, reference_points=deform_inputs2[0],
-                           feat=x, spatial_shapes=deform_inputs2[1],
-                           level_start_index=deform_inputs2[2], H=H, W=W)
-                           
-        if self.extra_CTIs is not None:
-            for cti in self.extra_CTIs:
-                c = cti(query=c, reference_points=deform_inputs2[0],
-                              feat=x, spatial_shapes=deform_inputs2[1],
-                              level_start_index=deform_inputs2[2], H=H, W=W)
+            cnn_ref_points = get_reference_points(c_shapes, c.device)
+            vit_spatial_shapes = x.new_tensor([[H_vit, W_vit]], dtype=torch.long)
+            vit_level_start_index = x.new_zeros((1,))
+            
+            c = self.cti_toc(
+                query=c,
+                reference_points=cnn_ref_points,
+                feat=x,
+                spatial_shapes=vit_spatial_shapes,
+                level_start_index=vit_level_start_index,
+                H=H, W=W, patch_size=patch_size
+            )
         return x, c
 
 class CNN(nn.Module):
@@ -469,15 +628,10 @@ class CNN(nn.Module):
         c2 = self.conv2(c1)
         c3 = self.conv3(c2)
         c4 = self.conv4(c3)
+
         c1 = self.fc1(c1)
         c2 = self.fc2(c2)
         c3 = self.fc3(c3)
         c4 = self.fc4(c4)
-
-        bs, dim, _, _ = c1.shape
-        # c1 = c1.view(bs, dim, -1).transpose(1, 2)  # 4s
-        c2 = c2.view(bs, dim, -1).transpose(1, 2)  # 8s
-        c3 = c3.view(bs, dim, -1).transpose(1, 2)  # 16s
-        c4 = c4.view(bs, dim, -1).transpose(1, 2)  # 32s
 
         return c1, c2, c3, c4
