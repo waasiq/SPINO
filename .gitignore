@@ -138,5 +138,5 @@ dmypy.json
 
 # IDEs
 .idea
-/results
+/results/cityscapes
 /checkpoints
