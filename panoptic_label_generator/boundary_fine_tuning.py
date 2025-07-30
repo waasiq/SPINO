@@ -69,11 +69,11 @@ class BoundaryFineTuner(FineTuner):
                  num_boundary_neighbors: int = 1, 
                  test_output_size: Optional[Tuple[int, int]] = None,
                  test_multi_scales: Optional[List[int]] = None,
-                 test_plot: bool = False, use_vitadapter: bool = False, use_vitcomer: bool = False):
+                 test_plot: bool = False, use_vitadapter: bool = False, use_vitcomer: bool = False, use_lora: bool = False):
 
         super().__init__(model=model, blocks=None,
                          upsample_factor=upsample_factor, use_vitadapter=use_vitadapter,
-                         use_vitcomer=use_vitcomer
+                         use_vitcomer=use_vitcomer, use_lora=use_lora
                         )
     
         assert mode in ['affinity', 'direct']

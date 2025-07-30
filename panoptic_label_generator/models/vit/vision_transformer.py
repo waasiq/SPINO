@@ -70,6 +70,7 @@ class DinoVisionTransformer(nn.Module):
             block_chunks=1,
             window_size=0,
             window_block_indexes=(),
+            use_lora=False,
     ):
         """
         Args:
@@ -149,6 +150,7 @@ class DinoVisionTransformer(nn.Module):
                 ffn_layer=ffn_layer,
                 init_values=init_values,
                 window_size=window_size if i in window_block_indexes else 0,
+                use_lora=use_lora,
             )
             for i in range(depth)
         ]

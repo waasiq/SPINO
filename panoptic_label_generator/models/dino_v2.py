@@ -19,6 +19,7 @@ def _make_dinov2_model(
         ffn_layer: str = "mlp",
         block_chunks: int = 0,
         pretrained: bool = True,
+        use_lora: bool = False,
         **kwargs,
 ):
     from .vit import vision_transformer as vits
@@ -30,6 +31,7 @@ def _make_dinov2_model(
         init_values=init_values,
         ffn_layer=ffn_layer,
         block_chunks=block_chunks,
+        use_lora=use_lora,
     )
     vit_kwargs.update(**kwargs)
     model = vits.__dict__[arch_name](**vit_kwargs)

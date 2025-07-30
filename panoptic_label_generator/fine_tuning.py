@@ -2,6 +2,7 @@ from typing import List, Optional
 
 import pytorch_lightning as pl
 import torch
+import loralib as lora
 from models.dino_v2 import (
     dinov2_vitb14,
     dinov2_vitg14,
@@ -27,13 +28,15 @@ from models.vit_comer.vit_comer import ViTCoMer
 
 class FineTuner(pl.LightningModule):
     def __init__(self, model: str, blocks: Optional[List[int]] = None,
-                 upsample_factor: Optional[float] = None, use_vitadapter: bool = False, use_vitcomer: bool = False):
+                 upsample_factor: Optional[float] = None, use_vitadapter: bool = False, 
+                 use_vitcomer: bool = False, use_lora: bool = False):
         super().__init__()
         self.model = model
         self.blocks = blocks
         self.upsample_factor = upsample_factor
         self.use_vitadapter = use_vitadapter
         self.use_vitcomer = use_vitcomer
+        self.use_lora = use_lora
 
         if use_vitadapter and use_vitcomer:
             raise ValueError("Cannot use both ViTAdapter and ViTCoMer at the same time. Choose one.")
@@ -64,7 +67,7 @@ class FineTuner(pl.LightningModule):
             print('[ENCODER] Using encoder: ViTCoMeR')
         elif model in dinov2_models:
             model_fn, name = dinov2_models[model]
-            self.encoder = model_fn(pretrained=True)
+            self.encoder = model_fn(pretrained=True, use_lora=self.use_lora)
             self.encoder_type = 'dinov2'
             print(f'[ENCODER] Using encoder: {name}')
         elif model in eva02_models:
@@ -80,10 +83,15 @@ class FineTuner(pl.LightningModule):
         else:
             raise ValueError(f'Unknown model {dinov2_vit_model}')
 
-        # Freeze the encoder if not using adapter or comer
-        if self.use_vitadapter == False and self.use_vitcomer == False:
+        # Freeze the encoder if not using adapter, comer, or lora
+        if not self.use_vitadapter and not self.use_vitcomer and not self.use_lora:
             for param in self.encoder.parameters():
                 param.requires_grad = False
+        elif self.use_lora:
+            # For LoRA: freeze all parameters, then enable only LoRA parameters
+            for param in self.encoder.parameters():
+                param.requires_grad = False
+            lora.mark_only_lora_as_trainable(self.encoder)
 
         if self.encoder_type == 'sam':
             self.feat_dim = self.encoder.neck[0].out_channels 
