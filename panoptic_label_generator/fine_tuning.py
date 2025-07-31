@@ -3,6 +3,7 @@ from typing import List, Optional
 import pytorch_lightning as pl
 import torch
 import loralib as lora
+
 from models.dino_v2 import (
     dinov2_vitb14,
     dinov2_vitg14,
@@ -67,7 +68,7 @@ class FineTuner(pl.LightningModule):
             print('[ENCODER] Using encoder: ViTCoMeR')
         elif model in dinov2_models:
             model_fn, name = dinov2_models[model]
-            self.encoder = model_fn(pretrained=True, use_lora=self.use_lora)
+            self.encoder = model_fn(pretrained=True)
             self.encoder_type = 'dinov2'
             print(f'[ENCODER] Using encoder: {name}')
         elif model in eva02_models:
@@ -81,17 +82,19 @@ class FineTuner(pl.LightningModule):
             self.encoder_type = 'sam'
             print('[ENCODER] Using encoder: SAM')
         else:
-            raise ValueError(f'Unknown model {dinov2_vit_model}')
+            raise ValueError(f'Unknown model')
 
         # Freeze the encoder if not using adapter, comer, or lora
         if not self.use_vitadapter and not self.use_vitcomer and not self.use_lora:
             for param in self.encoder.parameters():
                 param.requires_grad = False
         elif self.use_lora:
-            # For LoRA: freeze all parameters, then enable only LoRA parameters
-            for param in self.encoder.parameters():
-                param.requires_grad = False
+            self.lora_layers = nn.ModuleDict()
+            apply_lora(self.encoder, self.lora_layers)
+            #sets requires_grad to False for all parameters without the string "lora_" in their names
             lora.mark_only_lora_as_trainable(self.encoder)
+            assert any('lora' in name.lower() for name, _ in self.named_parameters()), 'LoRA layers not found!'
+            print('LoRA enabled')
 
         if self.encoder_type == 'sam':
             self.feat_dim = self.encoder.neck[0].out_channels 
@@ -157,68 +160,90 @@ class FineTuner(pl.LightningModule):
                 # x should be in format [B, H*W, C] (without class token) or [B, H*W+1, C] (with class token)
                 outs.append(x)
         elif self.encoder_type == 'dinov2':
-            with torch.no_grad():
-                block_outputs = self.encoder.forward_features(
-                    img,
-                    return_attention_features=return_attention_features,
-                    return_blocks=self.blocks)
-                if self.blocks is None:
-                    block_outputs = [block_outputs]
-                outs = []
-                for x in block_outputs:
-                    x = x[feature_key]
-                    if feature_key == 'attn':
-                        return x
-                    if feature_key in ['q', 'k', 'v']:
-                        # (B, Patches+1, num_heads, feat_dim // num_heads)
-                        x = x.permute((0, 2, 1, 3)).contiguous()
-                        x = x.reshape((x.shape[0], -1, self.feat_dim))  # (B, Patches+1, feat_dim)
-                    outs.append(x)
+            block_outputs = self.encoder.forward_features(
+                img,
+                return_attention_features=return_attention_features,
+                return_blocks=self.blocks)
+            if self.blocks is None:
+                block_outputs = [block_outputs]
+            outs = []
+            for x in block_outputs:
+                x = x[feature_key]
+                if feature_key == 'attn':
+                    return x
+                if feature_key in ['q', 'k', 'v']:
+                    # (B, Patches+1, num_heads, feat_dim // num_heads)
+                    x = x.permute((0, 2, 1, 3)).contiguous()
+                    x = x.reshape((x.shape[0], -1, self.feat_dim))  # (B, Patches+1, feat_dim)
+                outs.append(x)
         elif self.encoder_type == 'eva02':
-            with torch.no_grad():
-                if return_attention_features:
-                    raise NotImplementedError("EVA02 doesn't support attention feature extraction")
-                
-                # Get features from EVA02
-                block_outputs = self.encoder.forward_features(img)
-                if self.blocks is None:
-                    block_outputs = [block_outputs]
-                else:
-                    # For EVA02, we only get one feature output, so replicate for blocks
-                    block_outputs = [block_outputs] * len(self.blocks)
-                
-                outs = []
-                for x in block_outputs:
-                    x = x[feature_key]  # Should be token features [B, H*W+1, C]
-                    # EVA02 doesn't have attention weights, so skip attention-related features
-                    if feature_key == 'attn':
-                        raise NotImplementedError("EVA02 doesn't support attention weight extraction")
-                    if feature_key in ['q', 'k', 'v']:
-                        raise NotImplementedError("EVA02 doesn't support q/k/v feature extraction")
-                    outs.append(x)
+            if return_attention_features:
+                raise NotImplementedError("EVA02 doesn't support attention feature extraction")
+            
+            # Get features from EVA02
+            block_outputs = self.encoder.forward_features(img)
+            if self.blocks is None:
+                block_outputs = [block_outputs]
+            else:
+                # For EVA02, we only get one feature output, so replicate for blocks
+                block_outputs = [block_outputs] * len(self.blocks)
+            
+            outs = []
+            for x in block_outputs:
+                x = x[feature_key]  # Should be token features [B, H*W+1, C]
+                # EVA02 doesn't have attention weights, so skip attention-related features
+                if feature_key == 'attn':
+                    raise NotImplementedError("EVA02 doesn't support attention weight extraction")
+                if feature_key in ['q', 'k', 'v']:
+                    raise NotImplementedError("EVA02 doesn't support q/k/v feature extraction")
+                outs.append(x)
         
         # Handle the final processing differently for SAM vs other encoders
         if self.encoder_type == 'sam':
-            with torch.no_grad():
-                x = torch.cat(outs, dim=2)  # (B, Patches, feat_dim * self.num_blocks)
-                # SAM doesn't have class token, so don't remove anything
-                # x = x[:, 1:, :]  # Skip this line for SAM
-                x = x.permute((0, 2, 1)).contiguous()  # (B, feat_dim, H*W)
-                x = x.reshape((x.shape[0], self.feat_dim * self.num_blocks, patches_h,
-                                patches_w))  # (B, feat_dim, H, W)
-                if self.upsample_factor is not None:
-                    x = nn.functional.interpolate(x, scale_factor=self.upsample_factor, mode='bilinear',
-                                                    align_corners=False)  # (B, feat_dim, H, W)
+            x = torch.cat(outs, dim=2)  # (B, Patches, feat_dim * self.num_blocks)
+            # SAM doesn't have class token, so don't remove anything
+            # x = x[:, 1:, :]  # Skip this line for SAM
+            x = x.permute((0, 2, 1)).contiguous()  # (B, feat_dim, H*W)
+            x = x.reshape((x.shape[0], self.feat_dim * self.num_blocks, patches_h,
+                            patches_w))  # (B, feat_dim, H, W)
+            if self.upsample_factor is not None:
+                x = nn.functional.interpolate(x, scale_factor=self.upsample_factor, mode='bilinear',
+                                                align_corners=False)  # (B, feat_dim, H, W)
         else:
             # For DINOv2, EVA02, and other ViTs with class tokens
-            with torch.no_grad():
-                x = torch.cat(outs, dim=2)  # (B, Patches+1, feat_dim * self.num_blocks)
-                x = x[:, 1:, :]  # (B, Patches, feat_dim) - Remove class token
-                x = x.permute((0, 2, 1)).contiguous()  # (B, feat_dim, H*W)
-                x = x.reshape((x.shape[0], self.feat_dim * self.num_blocks, patches_h,
+            x = torch.cat(outs, dim=2)  # (B, Patches+1, feat_dim * self.num_blocks)
+            x = x[:, 1:, :]  # (B, Patches, feat_dim) - Remove class token
+            x = x.permute((0, 2, 1)).contiguous()  # (B, feat_dim, H*W)
+            x = x.reshape((x.shape[0], self.feat_dim * self.num_blocks, patches_h,
                                 patches_w))  # (B, feat_dim, H, W)
-                if self.upsample_factor is not None:
-                    x = nn.functional.interpolate(x, scale_factor=self.upsample_factor, mode='bilinear',
-                                                    align_corners=False)  # (B, feat_dim, H, W)
+            if self.upsample_factor is not None:
+                x = nn.functional.interpolate(x, scale_factor=self.upsample_factor, mode='bilinear',
+                                                align_corners=False)  # (B, feat_dim, H, W)
 
         return x
+
+def apply_lora(model, lora_store: nn.ModuleDict, rank=4, alpha=16, skip_blocks=[0, 1, 2]):
+    for name, module in model.named_modules():
+        if any(f'blocks.{i}.' in name for i in skip_blocks):
+            continue  # skip LoRA for early blocks
+        if name.endswith('attn.qkv') and isinstance(module, nn.Linear):
+            # name = "blocks.3.attn.qkv"
+            parent_name = '.'.join(name.split('.')[:-1]) # parent_name = "blocks.3.attn"
+            parent = dict(model.named_modules())[parent_name]
+
+            lora_module = lora.Linear(
+                in_features=module.in_features,
+                out_features=module.out_features,
+                r=rank,
+                lora_alpha=alpha,
+                fan_in_fan_out=False,
+                bias=module.bias is not None
+            )
+
+            lora_module.weight.data = module.weight.data.clone()
+            if module.bias is not None:
+                lora_module.bias.data = module.bias.data.clone()
+
+            unique_name = name.replace('.', '_')
+            lora_store[unique_name] = lora_module
+            setattr(parent, name.split('.')[-1], lora_store[unique_name])

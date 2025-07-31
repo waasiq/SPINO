@@ -18,7 +18,7 @@ model:
   model: "vitb14"
   mode: "direct"
   upsample_factor: 3.5
-  head: "linear"
+  head: "mlp"
   neighbor_radius: 1.5
   threshold_boundary: 0.93
   num_boundary_neighbors: 1
@@ -26,8 +26,8 @@ model:
   test_multi_scales: [3, 4, 5]
   test_plot: False
   use_vitadapter: False
-  use_vitcomer: False
-  use_lora: True 
+  use_vitcomer: True
+  use_lora: False 
 
 data:
   class_path: datasets.cityscapes.CityscapesDataModule

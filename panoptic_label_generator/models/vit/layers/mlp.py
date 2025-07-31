@@ -24,18 +24,13 @@ class Mlp(nn.Module):
         act_layer: Callable[..., nn.Module] = nn.GELU,
         drop: float = 0.0,
         bias: bool = True,
-        use_lora: bool = False,
     ) -> None:
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
         
-        if use_lora:
-            self.fc1 = lora.Linear(in_features, hidden_features, r=4, lora_alpha=16, bias=bias)
-            self.fc2 = lora.Linear(hidden_features, out_features, r=4, lora_alpha=16, bias=bias)
-        else:
-            self.fc1 = nn.Linear(in_features, hidden_features, bias=bias)
-            self.fc2 = nn.Linear(hidden_features, out_features, bias=bias)
+        self.fc1 = nn.Linear(in_features, hidden_features, bias=bias)
+        self.fc2 = nn.Linear(hidden_features, out_features, bias=bias)
         
         self.act = act_layer()
         self.drop = nn.Dropout(drop)

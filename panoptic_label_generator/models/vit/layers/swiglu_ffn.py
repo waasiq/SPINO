@@ -19,19 +19,14 @@ class SwiGLUFFN(nn.Module):
         out_features: Optional[int] = None,
         act_layer: Callable[..., nn.Module] = None,
         drop: float = 0.0,
-        bias: bool = True,
-        use_lora: bool = False,
+        bias: bool = True
     ) -> None:
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
         
-        if use_lora:
-            self.w12 = lora.Linear(in_features, 2 * hidden_features, r=4, lora_alpha=16, bias=bias)
-            self.w3 = lora.Linear(hidden_features, out_features, r=4, lora_alpha=16, bias=bias)
-        else:
-            self.w12 = nn.Linear(in_features, 2 * hidden_features, bias=bias)
-            self.w3 = nn.Linear(hidden_features, out_features, bias=bias)
+        self.w12 = nn.Linear(in_features, 2 * hidden_features, bias=bias)
+        self.w3 = nn.Linear(hidden_features, out_features, bias=bias)
 
     def forward(self, x: Tensor) -> Tensor:
         x12 = self.w12(x)

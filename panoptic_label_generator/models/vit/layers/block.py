@@ -1,23 +1,3 @@
-# Copyright (c) Meta Platforms, Iclass Block(nn.Module):
-    def __init__(
-            self,
-            dim: int,
-            num_heads: int,
-            mlp_ratio: float = 4.0,
-            qkv_bias: bool = False,
-            proj_bias: bool = True,
-            ffn_bias: bool = True,
-            drop: float = 0.0,
-            attn_drop: float = 0.0,
-            init_values=None,
-            drop_path: float = 0.0,
-            act_layer: Callable[..., nn.Module] = nn.GELU,
-            norm_layer: Callable[..., nn.Module] = nn.LayerNorm,
-            attn_class: Callable[..., nn.Module] = Attention,
-            ffn_layer: Callable[..., nn.Module] = Mlp,
-            window_size=0,
-            use_lora: bool = False,
-    ) -> None:
 # All rights reserved.
 #
 # This source code is licensed under the license found in the
@@ -68,7 +48,6 @@ class Block(nn.Module):
             attn_class: Callable[..., nn.Module] = Attention,
             ffn_layer: Callable[..., nn.Module] = Mlp,
             window_size=0,
-            use_lora: bool = False,
     ) -> None:
         super().__init__()
         # print(f"biases: qkv: {qkv_bias}, proj: {proj_bias}, ffn: {ffn_bias}")
@@ -80,7 +59,6 @@ class Block(nn.Module):
             proj_bias=proj_bias,
             attn_drop=attn_drop,
             proj_drop=drop,
-            use_lora=use_lora,
         )
         self.ls1 = LayerScale(dim, init_values=init_values) if init_values else nn.Identity()
         self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
@@ -93,7 +71,6 @@ class Block(nn.Module):
             act_layer=act_layer,
             drop=drop,
             bias=ffn_bias,
-            use_lora=use_lora,
         )
         self.ls2 = LayerScale(dim, init_values=init_values) if init_values else nn.Identity()
         self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
