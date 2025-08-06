@@ -13,6 +13,8 @@ from sklearn.neighbors import KNeighborsClassifier, radius_neighbors_graph
 from torch import nn
 from torchvision.transforms import InterpolationMode
 
+from models.vit_adapter.vit_adapter import ViTAdapter
+
 # Ignore some torch warnings
 warnings.filterwarnings('ignore', '.*The default behavior for interpolate/upsample with float*')
 warnings.filterwarnings(
@@ -25,7 +27,7 @@ class BoundaryFineTuner(FineTuner):
 
     Parameters
     ----------
-    dinov2_vit_model : str
+    model : str
         ViT model name of DINOv2. One of ['vits14', 'vitl14', 'vitg14', 'vitb14'].
     mode : str
         One of ['affinity', 'direct']. If 'affinity', predict affinity. If 'direct', predict
@@ -47,17 +49,33 @@ class BoundaryFineTuner(FineTuner):
         List of scales to use for multi-scale during prediction/testing e.g. [1, 2, 3].
     test_plot : bool
         Whether to plot the predictions during testing.
+    use_vit_adapter : bool
+        Whether to use a ViTAdapter for the DINOv2 model. If True,
+        `model` should be one of ['vits14', 'vitl14', 'vitg14', 'vitb14'].
+    vit_adapter_kwargs : Dict[str, Any]
+        Additional keyword arguments for the ViTAdapter. If `use_vit_adapter` is True, this
+        should contain the `interaction_indexes` key with a list of lists of interaction indexes
+        for the ViTAdapter. If not provided, default interaction indexes will be used based on
+        the DINOv2 model architecture:
+        - 'vits14': [[3, 5, 7], [6, 8, 10], [9, 11, 11]]
+        - 'vitb14': [[6, 8, 10], [9, 11, 13], [12, 14, 16]]
+        - 'vitl14': [[12, 15, 18], [15, 18, 21], [18, 21, 24]]
+        - 'vitg14': [[24, 29, 34], [29, 34, 39], [34, 39, 43]]
     """
 
-    def __init__(self, dinov2_vit_model: str, mode: str = 'direct',
+    def __init__(self, model: str, mode: str = 'direct',
                  upsample_factor: Optional[float] = None, head: str = 'mlp',
                  neighbor_radius: float = 1.5, threshold_boundary: float = 0.95,
-                 num_boundary_neighbors: int = 1,
+                 num_boundary_neighbors: int = 1, 
                  test_output_size: Optional[Tuple[int, int]] = None,
                  test_multi_scales: Optional[List[int]] = None,
-                 test_plot: bool = False):
-        super().__init__(dinov2_vit_model=dinov2_vit_model, blocks=None,
-                         upsample_factor=upsample_factor)
+                 test_plot: bool = False, use_vitadapter: bool = False, use_vitcomer: bool = False, use_lora: bool = False):
+
+        super().__init__(model=model, blocks=None,
+                         upsample_factor=upsample_factor, use_vitadapter=use_vitadapter,
+                         use_vitcomer=use_vitcomer, use_lora=use_lora
+                        )
+    
         assert mode in ['affinity', 'direct']
         self.mode = mode
         self.neighbor_radius = neighbor_radius
@@ -68,6 +86,7 @@ class BoundaryFineTuner(FineTuner):
         self.test_plot = test_plot
 
         if self.mode == 'affinity':
+            #! Need to implement ViT Comer and Adapter fix for featdim here 
             if self.head == 'mlp':
                 self.head = nn.Sequential(
                     nn.Linear(2 * self.feat_dim, 600),
@@ -81,15 +100,20 @@ class BoundaryFineTuner(FineTuner):
             else:
                 raise NotImplementedError
         elif self.mode == 'direct':
+            if self.use_vitadapter or self.use_vitcomer:
+                feat_dim = 4 * self.feat_dim
+            else:
+                feat_dim = self.feat_dim
+                
             if head == 'linear':
-                self.head = nn.Conv2d(self.feat_dim, 1, kernel_size=1, stride=1, padding=0)
+                self.head = nn.Conv2d(feat_dim, 1, kernel_size=1, stride=1, padding=0)
             elif head == 'knn':
                 self.head = KNeighborsClassifier(n_neighbors=5, leaf_size=10)
                 self.knn_X = []
                 self.knn_y = []
             elif head == 'cnn':
                 self.head = nn.Sequential(
-                    nn.Conv2d(self.feat_dim, 600, kernel_size=3, stride=1, padding=1),
+                    nn.Conv2d(feat_dim, 600, kernel_size=3, stride=1, padding=1),
                     nn.ReLU(),
                     nn.Conv2d(600, 600, kernel_size=3, stride=1, padding=1),
                     nn.ReLU(),
@@ -97,9 +121,9 @@ class BoundaryFineTuner(FineTuner):
                     nn.ReLU(),
                     nn.Conv2d(400, 1, kernel_size=3, stride=1, padding=1),
                 )
-            elif head == 'mlp':
+            elif head == 'mlp': 
                 self.head = nn.Sequential(
-                    nn.Conv2d(self.feat_dim, 600, kernel_size=1, stride=1, padding=0),
+                    nn.Conv2d(feat_dim, 600, kernel_size=1, stride=1, padding=0),
                     nn.ReLU(),
                     nn.Conv2d(600, 600, kernel_size=1, stride=1, padding=0),
                     nn.ReLU(),
@@ -153,7 +177,7 @@ class BoundaryFineTuner(FineTuner):
 
     def forward(self, img: torch.Tensor, connected_indices: np.array = None,
                 segment_mask=None) -> torch.Tensor:
-        x = self.forward_encoder(img)  # (B, feat_dim, H, W)
+        x = self.forward_encoder(img) # (B, feat_dim, H, W)
 
         if self.mode == 'affinity':
             batch_size = x.shape[0]
@@ -405,8 +429,7 @@ class BoundaryFineTunerCLI(LightningCLI):
         )
 
     def add_arguments_to_parser(self, parser):
-        # Dataset
-        parser.add_argument('--data_params', type=Dict)
+        parser.add_argument('--data_params', type=Dict[str, Any])
 
 
 if __name__ == '__main__':

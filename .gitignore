@@ -1,5 +1,5 @@
 # Custom
-
+checkpoints/*.ckpt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -134,3 +134,5 @@ dmypy.json
 
 # IDEs
 .idea
+/results
+/checkpoints

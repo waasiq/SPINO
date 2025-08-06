@@ -1,0 +1,71 @@
+/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/torchvision/io/image.py:11: UserWarning: Failed to load image Python extension: libtorch_cuda_cu.so: cannot open shared object file: No such file or directory
+  warn(f"Failed to load image Python extension: {e}")
+Traceback (most recent call last):
+  File "panoptic_label_generator/semantic_fine_tuning.py", line 11, in <module>
+    from fine_tuning import FineTuner
+  File "/work/dlclarge2/masoodw-spino100/dl-lab/SPINO/panoptic_label_generator/fine_tuning.py", line 12, in <module>
+    from models.eva02 import (
+  File "/work/dlclarge2/masoodw-spino100/dl-lab/SPINO/panoptic_label_generator/models/eva02.py", line 6, in <module>
+    import timm
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/timm/__init__.py", line 3, in <module>
+    from .models import create_model, list_models, list_pretrained, is_model, list_modules, model_entrypoint, \
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/timm/models/__init__.py", line 1, in <module>
+    from .beit import *
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/timm/models/beit.py", line 49, in <module>
+    from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/timm/data/__init__.py", line 5, in <module>
+    from .dataset import ImageDataset, IterableImageDataset, AugMixDataset
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/timm/data/dataset.py", line 13, in <module>
+    from .readers import create_reader
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/timm/data/readers/__init__.py", line 1, in <module>
+    from .reader_factory import create_reader
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/timm/data/readers/reader_factory.py", line 3, in <module>
+    from .reader_image_folder import ReaderImageFolder
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/timm/data/readers/reader_image_folder.py", line 11, in <module>
+    from timm.utils.misc import natural_key
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/timm/utils/__init__.py", line 15, in <module>
+    from .summary import update_summary, get_outdir
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/timm/utils/summary.py", line 9, in <module>
+    import wandb
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/wandb/__init__.py", line 22, in <module>
+    from wandb.sdk.lib import wb_logging as _wb_logging
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/wandb/sdk/__init__.py", line 25, in <module>
+    from .artifacts.artifact import Artifact
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/wandb/sdk/artifacts/artifact.py", line 30, in <module>
+    from wandb import data_types, env
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/wandb/data_types.py", line 16, in <module>
+    from .sdk.data_types.audio import Audio
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/wandb/sdk/data_types/audio.py", line 11, in <module>
+    from .base_types.media import BatchableMedia
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/wandb/sdk/data_types/base_types/media.py", line 14, in <module>
+    from .wb_value import WBValue
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/wandb/sdk/data_types/base_types/wb_value.py", line 4, in <module>
+    from wandb.sdk import wandb_setup
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/wandb/sdk/wandb_setup.py", line 39, in <module>
+    from . import wandb_settings
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/wandb/sdk/wandb_settings.py", line 38, in <module>
+    from .lib import apikey, credentials, ipython
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/wandb/sdk/lib/apikey.py", line 21, in <module>
+    from wandb.apis import InternalApi
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/wandb/apis/__init__.py", line 44, in <module>
+    from .public import Api as PublicApi  # noqa
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/wandb/apis/public/__init__.py", line 1, in <module>
+    from wandb.apis.public.api import Api, RetryingClient, requests
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/wandb/apis/public/api.py", line 57, in <module>
+    from wandb.sdk.launch.utils import LAUNCH_DEFAULT_PROJECT
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/wandb/sdk/launch/__init__.py", line 1, in <module>
+    from ._launch import create_and_run_agent, launch
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/wandb/sdk/launch/_launch.py", line 12, in <module>
+    from . import loader
+  File "/work/dlclarge2/masoodw-spino100/miniconda3/envs/spino/lib/python3.8/site-packages/wandb/sdk/launch/loader.py", line 13, in <module>
+    from .runner.abstract import AbstractRunner
+  File "<frozen importlib._bootstrap>", line 991, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 971, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 914, in _find_spec
+  File "<frozen importlib._bootstrap_external>", line 1407, in find_spec
+  File "<frozen importlib._bootstrap_external>", line 1379, in _get_spec
+  File "<frozen importlib._bootstrap_external>", line 1539, in find_spec
+  File "<frozen importlib._bootstrap_external>", line 156, in _path_isfile
+  File "<frozen importlib._bootstrap_external>", line 148, in _path_is_mode_type
+  File "<frozen importlib._bootstrap_external>", line 142, in _path_stat
+KeyboardInterrupt

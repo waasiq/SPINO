@@ -16,6 +16,8 @@ from torch import nn
 from torch.utils.data import Dataset
 from torchvision.transforms import InterpolationMode
 
+from models.vit_adapter.vit_adapter import ViTAdapter
+
 # Ignore some torch warnings
 warnings.filterwarnings('ignore', '.*The default behavior for interpolate/upsample with float*')
 warnings.filterwarnings(
@@ -25,7 +27,6 @@ warnings.filterwarnings('ignore', '.*Only one label was provided to `remove_smal
 
 class SemanticFineTuner(FineTuner):
     """Fine-tunes a small head on top of the DINOv2 model for semantic segmentation.
-
     Parameters
     ----------
     dinov2_vit_model : str
@@ -54,15 +55,20 @@ class SemanticFineTuner(FineTuner):
         Directory to save the predictions during testing.
     """
 
-    def __init__(self, dinov2_vit_model: str, num_classes: int, train_output_size: Tuple[int, int],
+    def __init__(self, model: str, num_classes: int, train_output_size: Tuple[int, int],
                  blocks: Optional[List[int]] = None, upsample_factor: Optional[float] = None,
                  head: str = 'mlp',
                  ignore_index: int = -100, top_k_percent_pixels: float = 1.0,
                  test_output_size: Optional[Tuple[int, int]] = None,
-                 test_multi_scales: Optional[List[int]] = None,
+                 test_multi_scales: Optional[List[int]] = None, 
+                 use_vitadapter: bool = False, use_vitcomer: bool = False,
+                 use_lora: bool = False,
                  test_plot: bool = False, test_save_dir: Optional[str] = None):
-        super().__init__(dinov2_vit_model=dinov2_vit_model, blocks=blocks,
-                         upsample_factor=upsample_factor)
+
+        super().__init__(model=model, blocks=blocks,
+                         upsample_factor=upsample_factor, use_vitadapter=use_vitadapter,
+                         use_vitcomer=use_vitcomer, use_lora=use_lora)
+
         self.num_classes = num_classes
         self.train_output_size = train_output_size
         self.ignore_index = ignore_index
@@ -72,7 +78,11 @@ class SemanticFineTuner(FineTuner):
         self.test_plot = test_plot
         self.test_save_dir = test_save_dir
 
-        head_input_dim = self.feat_dim * self.num_blocks
+        if self.use_vitadapter or self.use_vitcomer:
+            head_input_dim = 4 * (self.feat_dim * self.num_blocks)
+        else:
+            head_input_dim = self.feat_dim * self.num_blocks
+
         if head == 'linear':
             self.head = nn.Conv2d(head_input_dim, num_classes, kernel_size=1, stride=1, padding=0)
         elif head == 'knn':
@@ -104,6 +114,7 @@ class SemanticFineTuner(FineTuner):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.forward_encoder(x)  # (B, feat_dim, H, W)
+
         if isinstance(self.head, KNeighborsClassifier):
             if self.training:
                 return x  # return only features during training
@@ -273,7 +284,6 @@ class SemanticFineTuner(FineTuner):
 
 
 class SemanticFineTunerCLI(LightningCLI):
-
     def __init__(self):
         super().__init__(
             model_class=SemanticFineTuner,
@@ -281,10 +291,8 @@ class SemanticFineTunerCLI(LightningCLI):
             parser_kwargs={'parser_mode': 'omegaconf'},
             save_config_callback=None,
         )
-
     def add_arguments_to_parser(self, parser):
-        # Dataset
-        parser.add_argument('--data_params', type=Dict)
+        parser.add_argument('--data_params', type=Dict[str, Any])
 
 
 if __name__ == '__main__':

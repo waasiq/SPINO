@@ -76,8 +76,16 @@ class InstanceCluster(pl.LightningModule):
         self.boundary_model.on_load_checkpoint(boundary_model_ckpt_dict)
 
         # share encoder if the same vit model is used
-        if self.semantic_model.dinov2_vit_model == self.boundary_model.dinov2_vit_model:
+        if hasattr(self.semantic_model, 'dinov2_vit_model') and \
+                hasattr(self.boundary_model, 'dinov2_vit_model') and \
+                self.semantic_model.dinov2_vit_model == self.boundary_model.dinov2_vit_model:
             self.boundary_model.encoder = self.semantic_model.encoder
+        elif hasattr(self.semantic_model, 'eva02_model') and \
+                hasattr(self.boundary_model, 'eva02_model') and \
+                self.semantic_model.eva02_model == self.boundary_model.eva02_model:
+            self.boundary_model.encoder = self.semantic_model.encoder
+        # if self.semantic_model.dinov2_vit_model == self.boundary_model.dinov2_vit_model:
+        #     self.boundary_model.encoder = self.semantic_model.encoder
 
         for param in self.semantic_model.parameters():  # freeze
             param.requires_grad = False
@@ -105,7 +113,11 @@ class InstanceCluster(pl.LightningModule):
         self.id_color_array = (id_color_array * 255).astype(np.uint8)
 
     def get_dataset(self) -> Dataset:
-        dataset = self.trainer.test_dataloaders[0].dataset
+        test_dataloaders = self.trainer.test_dataloaders
+        if isinstance(test_dataloaders, list):
+            dataset = test_dataloaders[0].dataset
+        else:
+            dataset = test_dataloaders.dataset
         return dataset
 
     def predict(self, rgb: torch.Tensor, rgb_original: torch.Tensor,
@@ -312,7 +324,7 @@ class InstanceClusterCLI(LightningCLI):
 
     def add_arguments_to_parser(self, parser):
         # Dataset
-        parser.add_argument('--data_params', type=Dict)
+        parser.add_argument('--data_params', type=Dict[str, Any])
 
 
 if __name__ == '__main__':

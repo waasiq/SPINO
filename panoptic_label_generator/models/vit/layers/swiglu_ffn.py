@@ -8,6 +8,7 @@ from typing import Callable, Optional
 
 import torch.nn.functional as F
 from torch import Tensor, nn
+import loralib as lora
 
 
 class SwiGLUFFN(nn.Module):
@@ -18,11 +19,12 @@ class SwiGLUFFN(nn.Module):
         out_features: Optional[int] = None,
         act_layer: Callable[..., nn.Module] = None,
         drop: float = 0.0,
-        bias: bool = True,
+        bias: bool = True
     ) -> None:
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
+        
         self.w12 = nn.Linear(in_features, 2 * hidden_features, bias=bias)
         self.w3 = nn.Linear(hidden_features, out_features, bias=bias)
 

@@ -4,7 +4,7 @@ seed_everything: 0
 trainer:
   max_epochs: 50
   accelerator: gpu
-  strategy: ddp_find_unused_parameters_false
+  strategy: ddp_find_unused_parameters_true
   sync_batchnorm: True
   logger: False
   callbacks:
@@ -15,7 +15,7 @@ trainer:
         every_n_epochs: 10
 
 model:
-  dinov2_vit_model: "vitb14"
+  model: "vitb14"
   num_classes: ${data.init_args.num_classes}
   train_output_size: ${data_params.image_size_input}
   upsample_factor: 14.0
@@ -23,15 +23,18 @@ model:
   ignore_index: 255
   top_k_percent_pixels: 0.2
   test_output_size: ${data_params.image_size_original}
-  test_multi_scales: [1, 2, 3]
+  test_multi_scales: [1, 2]
   test_plot: False
+  use_vitadapter: False
+  use_vitcomer: True
+  use_lora: False 
 
 data:
   class_path: datasets.cityscapes.CityscapesDataModule
   init_args:
     cfg_dataset:
       name: "cityscapes"
-      path: "" # SET THE PATH TO THE CITYSCAPES DATASET
+      path: "/work/dlclarge2/masoodw-spino100/dl-lab/cityscapes" # SET THE PATH TO THE CITYSCAPES DATASET
       feed_img_size: ${data_params.image_size_original}
       offsets: [0]
       remove_classes: []
@@ -72,12 +75,13 @@ data:
 
 data_params:
   image_size_original: [1024, 2048]
-  image_size_input: [1008, 2016]
+  image_size_input: [448, 896] #[672, 1344] #[448, 896] #[504, 1008]
   image_mean: [0.485, 0.456, 0.406]
   image_std: [0.229, 0.224, 0.225]
 
 ckpt_path: null
 
+# Lr for vit adapter and comer was set to 0.0001 and 0.001 for the normal one.
 optimizer:
   class_path: torch.optim.Adam
   init_args:
@@ -87,3 +91,9 @@ lr_scheduler:
   class_path: torch.optim.lr_scheduler.CosineAnnealingLR
   init_args:
     T_max: ${trainer.max_epochs}
+
+# This lr_scheduler is for vit-adapter.
+# lr_scheduler:
+#   class_path: torch.optim.lr_scheduler.StepLR
+#   init_args:
+#     step_size: 500

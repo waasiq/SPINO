@@ -12,7 +12,7 @@ def _make_dinov2_model_name(arch_name: str, patch_size: int) -> str:
 
 def _make_dinov2_model(
         *,
-        arch_name: str = "vit_large",
+        arch_name: str = "vit_base",
         img_size: int = 518,
         patch_size: int = 14,
         init_values: float = 1.0,
@@ -29,7 +29,7 @@ def _make_dinov2_model(
         patch_size=patch_size,
         init_values=init_values,
         ffn_layer=ffn_layer,
-        block_chunks=block_chunks,
+        block_chunks=block_chunks
     )
     vit_kwargs.update(**kwargs)
     model = vits.__dict__[arch_name](**vit_kwargs)
